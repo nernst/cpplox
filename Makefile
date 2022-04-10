@@ -26,12 +26,12 @@ DEPFILES := $(patsubst $(SOURCE_DIR)/%.cpp,obj/%.d,$(SOURCES))
 CXXFLAGS := -std=c++2a -Iinc -Wall -Wextra -Werror -MMD -MP
 DBGFLAGS := -g
 RELFLAGS := -O3
-LIBS := 
+LIBS := fmt
 LDFLAGS := $(patsubst %,-l%,$(LIBS))
 
 CC := g++
 
-.PHONY: default all testmake debug release clean dirs
+.PHONY: default all testmake debug release clean dirs test
 
 default: debug 
 
@@ -74,4 +74,7 @@ $(RELEASE_OBJ_DIR)/%.o: src/%.cpp
 $(DEBUG_OBJ_DIR)/%.o: src/%.cpp
 	mkdir -p $(DEBUG_OBJ_DIR)
 	$(CC) $(DBGFLAGS) $(CXXFLAGS) -MF $(patsubst $(DEBUG_OBJ_DIR)/%.o, obj/%.d,$@) -c $< -o $@
+
+test: debug
+	./bin/debug/cpplox hello.lox
 
