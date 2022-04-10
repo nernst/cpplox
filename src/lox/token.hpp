@@ -1,7 +1,9 @@
 #pragma once
 
 #include <string_view>
+#include <type_traits>
 #include <variant>
+#include <fmt/format.h>
 #include "token_type.hpp"
 
 namespace lox {
@@ -10,6 +12,8 @@ namespace lox {
 	{
 	public:
 		using literal_t = std::variant<std::string_view, double>;
+		
+		token() = default;
 	
 		token(token_type type, std::string_view	lexeme, literal_t literal, std::size_t line)
 		: type_(type)
@@ -38,8 +42,30 @@ namespace lox {
 		std::string_view lexeme_;
 		literal_t literal_;
 		std::size_t line_;
-
 	};
+
+	std::string str(token tok)
+	{
+		return fmt::format(
+			"[type={}, lexeme={}, line={}, literal={}]",
+			str(tok.type()),
+			tok.lexeme(),
+			tok.line(),
+			std::visit([](auto&& arg) -> std::string {
+					using T = std::decay_t<decltype(arg)>;
+					if constexpr (std::is_same_v<T, double>) {
+						return std::to_string(arg);
+					} else if constexpr (std::is_same_v<T, std::string_view>) {
+						return std::string(arg);
+					}
+					else {
+						return std::string();
+					}
+				},
+				tok.literal()
+			)
+		);
+	}
 
 } // namespace lox
 

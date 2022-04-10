@@ -12,10 +12,7 @@ using namespace lox;
 void run(std::string_view source_path, std::string_view source)
 {
 	scanner<> s{source_path, source};
-
-	s.scan([](token&& token){
-		std::cout << "[type=" << token.type() << ", lexeme=" << token.lexeme() << ", line=" << token.line() << "]\n";
-	});
+	s.scan();
 
 	std::cout << "had error? " << s.had_error() << std::endl;
 }

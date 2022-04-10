@@ -8,7 +8,7 @@ namespace lox {
 	enum class token_type
 	{
 		// single-character tokens
-		LEFT_PAREN, RIGHT_PARENT, LEFT_BRACE, RIGHT_BRACE,
+		LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
 		COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
 
 		// one or two character tokens
@@ -36,7 +36,7 @@ namespace lox {
 		switch(type)
 		{
 			TOKEN_CASE(LEFT_PAREN);
-			TOKEN_CASE(RIGHT_PARENT);
+			TOKEN_CASE(RIGHT_PAREN);
 			TOKEN_CASE(LEFT_BRACE);
 			TOKEN_CASE(RIGHT_BRACE);
 			TOKEN_CASE(COMMA);
