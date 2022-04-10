@@ -4,6 +4,7 @@
 #include <cassert>
 #include <iostream>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 #include <fmt/format.h>
 
@@ -73,6 +74,32 @@ namespace lox {
 	class scanner
 	{
 	public:
+
+		using keyword_map = std::unordered_map<std::string_view, token_type>;
+
+		static keyword_map const& keywords()
+		{
+			static const keyword_map keywords{
+				{"and", token_type::AND},
+				{"class", token_type::CLASS},
+				{"else", token_type::ELSE},
+				{"false", token_type::FALSE},
+				{"for", token_type::FOR},
+				{"fun", token_type::FUN},
+				{"if", token_type::IF},
+				{"nil", token_type::NIL},
+				{"or", token_type::OR},
+				{"print", token_type::PRINT},
+				{"return", token_type::RETURN},
+				{"super", token_type::SUPER},
+				{"this", token_type::THIS},
+				{"true", token_type::TRUE},
+				{"var", token_type::VAR},
+				{"while", token_type::WHILE},
+			};
+
+			return keywords;
+		}
 
 		explicit scanner(
 			std::string_view source_path,
@@ -161,6 +188,13 @@ namespace lox {
 			return source_[current_ + 1];
 		}
 
+		std::string_view current_lexeme() const {
+			return std::string_view{
+				source_.data() + start_,
+				current_ - start_
+			};
+		}
+
 		bool match(char expected)
 		{
 			if (is_at_end() || source_[current_] != expected)
@@ -246,7 +280,13 @@ namespace lox {
 			while (is_alpha_numeric(peek()))
 				advance();
 
-			add_token(token_type::IDENTIFIER);
+			auto&& kws = keywords();
+
+			auto id = current_lexeme();
+			auto i = kws.find(id);
+			auto type = i == kws.end() ? token_type::IDENTIFIER : i->second;
+
+			add_token(type);
 		}
 
 		void scan_token()
@@ -296,12 +336,9 @@ namespace lox {
 
 				default:
 					if (is_digit(c))
-					{
 						number();
-					} else if (is_alpha(c))
-					{
+					else if (is_alpha(c))
 						identifier();
-					}
 					else
 					{
 						auto msg = fmt::format("Unexpected character: {}", c);
