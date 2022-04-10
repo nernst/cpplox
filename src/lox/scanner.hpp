@@ -170,6 +170,24 @@ namespace lox {
 			return true;
 		}
 
+		bool is_digit(char c)
+		{
+			return '0' <= c && c <= '9';
+		}
+
+		bool is_alpha(char c)
+		{
+			return ('a' <= c && c <= 'z')
+				|| ('A' <= c && c <= 'Z' )
+				|| c == '_';
+		}
+
+		bool is_alpha_numeric(char c)
+		{
+			return is_digit(c) || is_alpha(c);
+		}
+
+
 		void new_line()
 		{
 			++line_;
@@ -223,9 +241,12 @@ namespace lox {
 			add_token(token_type::NUMBER, val);
 		}
 
-		bool is_digit(char c)
+		void identifier()
 		{
-			return '0' <= c && c <= '9';
+			while (is_alpha_numeric(peek()))
+				advance();
+
+			add_token(token_type::IDENTIFIER);
 		}
 
 		void scan_token()
@@ -277,6 +298,9 @@ namespace lox {
 					if (is_digit(c))
 					{
 						number();
+					} else if (is_alpha(c))
+					{
+						identifier();
 					}
 					else
 					{
