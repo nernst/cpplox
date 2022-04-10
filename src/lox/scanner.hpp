@@ -7,10 +7,31 @@
 #include <vector>
 #include <fmt/format.h>
 
+#define NO_FROM_CHARS
+
+#ifdef NO_FROM_CHARS
+#include <boost/lexical_cast.hpp>
+#else
+#include <charconv>
+#include <system_error>
+#endif
+
 #include "token.hpp"
 #include "utility.hpp"
 
 namespace lox {
+
+	double double_from_chars(std::string_view sv)
+	{
+		double val;
+#ifdef NO_FROM_CHARS
+		val = boost::lexical_cast<double>(sv);
+#else
+		auto [ptr, ec] {std::from_chars(std::begin(sv), std::end(sv), val) };
+		assert(ec == std::errc()); // TODO: Probably should never happen, but sanity check?
+#endif
+		return val;
+	}
 
 	struct scanner_error_handler
 	{
@@ -133,6 +154,13 @@ namespace lox {
 			return is_at_end() ? '\0' : source_[current_];
 		}
 
+		char peek_next()
+		{
+			if (current_ + 1 > end_)
+				return '\0';
+			return source_[current_ + 1];
+		}
+
 		bool match(char expected)
 		{
 			if (is_at_end() || source_[current_] != expected)
@@ -140,6 +168,64 @@ namespace lox {
 
 			++current_;
 			return true;
+		}
+
+		void new_line()
+		{
+			++line_;
+			lines_.push_back(current_);
+		}
+
+		void string()
+		{
+			while (peek() != '"' && !is_at_end())
+			{
+				if (peek() == '\n')
+					new_line();
+
+				advance();
+			}
+
+			if (is_at_end())
+			{
+				error("Unterminated string.");
+				return;
+			}
+
+			advance(); // closing quote
+
+			// Value without enclosing quotes
+			auto sv = source_.substr(
+				start_ + 1,
+				current_ - (start_ + 1) - 1
+			);
+
+			add_token(token_type::STRING, sv);
+		}
+
+		void number()
+		{
+			while (is_digit(peek()) && !is_at_end())
+				advance();
+
+			if (peek() == '.' && is_digit(peek_next()))
+			{
+				advance(); // consume '.'
+				while (is_digit(peek()) && !is_at_end())
+					advance();
+			}
+
+			double val{double_from_chars(
+				source_.substr(
+					start_,
+					current_ - start_
+			))};
+			add_token(token_type::NUMBER, val);
+		}
+
+		bool is_digit(char c)
+		{
+			return '0' <= c && c <= '9';
 		}
 
 		void scan_token()
@@ -152,8 +238,7 @@ namespace lox {
 					break;
 				
 				case '\n':
-					++line_;
-					lines_.push_back(current_);
+					new_line();
 					break;
 
 				case '(': add_token(token_type::LEFT_PAREN); break;
@@ -184,9 +269,20 @@ namespace lox {
 
 					break;
 
+				case '"':
+					string();
+					break;
+
 				default:
-					auto msg = fmt::format("Unexpected character: {}", c);
-					error(msg);
+					if (is_digit(c))
+					{
+						number();
+					}
+					else
+					{
+						auto msg = fmt::format("Unexpected character: {}", c);
+						error(msg);
+					}
 			}
 		}
 
