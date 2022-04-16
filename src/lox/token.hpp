@@ -2,27 +2,27 @@
 
 #include <string_view>
 #include <type_traits>
-#include <variant>
 #include <fmt/format.h>
 #include "token_type.hpp"
+#include "literal_holder.hpp"
 
 namespace lox {
 
 	class token
 	{
 	public:
-		using literal_t = std::variant<std::string_view, double>;
+		using literal_t = literal_holder;
 		
 		token() = default;
 	
-		token(token_type type, std::string_view	lexeme, literal_t literal, std::size_t line)
+		token(token_type type, std::string_view	lexeme, literal_t literal, std::size_t line = 0)
 		: type_(type)
 		, lexeme_(lexeme)
 		, literal_(literal)
 		, line_(line)
 		{ }
 
-		token(token_type type, std::string_view lexeme, std::size_t line)
+		token(token_type type, std::string_view lexeme, std::size_t line = 0)
 		: token(type, lexeme, literal_t(), line)
 		{ }
 
@@ -55,11 +55,12 @@ namespace lox {
 					using T = std::decay_t<decltype(arg)>;
 					if constexpr (std::is_same_v<T, double>) {
 						return std::to_string(arg);
+					} else if constexpr (std::is_same_v<T, bool>) {
+						return arg ? "true" : "false";
+					} else if constexpr (std::is_same_v<T, nullptr_t>) {
+						return "nil";
 					} else if constexpr (std::is_same_v<T, std::string_view>) {
 						return std::string(arg);
-					}
-					else {
-						return std::string();
 					}
 				},
 				tok.literal()

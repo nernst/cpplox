@@ -51,7 +51,7 @@ testmake:
 	@echo DEPFILES = $(DEPFILES)
 
 clean:
-	rm -f $(OBJFILES_REL) $(OBJFILES_DEBUG) $(DEPFILES) $(PROGRAMS)
+	rm -rf $(OUTDIRS)
 
 $(PROGS_REL): $(RELEASE_DIR)%: $(RELEASE_OBJ_DIR)%.o $(OBJFILES_REL)
 	mkdir -p $(RELEASE_DIR)
