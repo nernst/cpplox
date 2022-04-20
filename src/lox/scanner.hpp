@@ -38,24 +38,23 @@ namespace lox {
 	struct scanner_error_handler
 	{
 		void operator()(
-			std::string_view const& source_path, 
+			source const& s,
 			std::size_t offset, 
-			std::size_t line_number,
-			std::string_view line,
-			std::size_t line_offset,
 			std::string_view where,
 			std::string_view message
 			)
 		{
 			ignore_unused(offset);
 
-			std::cerr << "in " << source_path << " (" << line_number << ':' << line_offset << "):\n";
-			std::cerr << fmt::format("{:>5} |", line_number) << line << '\n';
+			auto [line_no, line_off, line] = s.get_line(offset);
+
+			std::cerr << "in " << s.name() << " (" << line_no << ':' << line_off << "):\n";
+			std::cerr << fmt::format("{:>5} |", line_no) << line << '\n';
 			std::cerr << "      |";
-			for (size_t count = line_offset; count; --count)
+			for (size_t count = line_off; count; --count)
 				std::cerr << ' ';
 			std::cerr << "^\n";
-			std::cerr << "[line " << line_number << "] Error" << where << ": " << message << "\n\n";
+			std::cerr << "[line " << line_no << "] Error" << where << ": " << message << "\n\n";
 		}
 	};
 
@@ -103,7 +102,7 @@ namespace lox {
 		}
 
 		explicit scanner(
-			source const& source,
+			source& source,
 			TokenSink&& token_sink = TokenSink(),
 			ErrorHandler&& error_handler = ErrorHandler()
 		)
@@ -115,44 +114,23 @@ namespace lox {
 		, end_{source.size()}
 		, line_{1}
 		, had_error_{false}
-		{
-			lines_.push_back(0);
-		}
+		{ }
 
 		void scan();
-
-		std::size_t line_number(std::size_t offset) const {
-			assert(offset <= end_);
-
-			auto i = std::lower_bound(std::cbegin(lines_), std::cend(lines_), offset);
-			return std::distance(std::cbegin(lines_), i);
-		}
 
 		bool is_at_end() const { return current_ >= end_; }
 
 		bool had_error() const { return had_error_; }
 
 	private:
-		source const& source_;
+		source& source_;
 		TokenSink token_sink_;
 		ErrorHandler error_handler_;
-		std::vector<std::size_t> lines_;
 		std::size_t current_;
 		std::size_t start_;
 		std::size_t end_;
 		std::size_t line_;
 		bool had_error_;
-
-		std::string_view current_line()
-		{
-			assert(!lines_.empty());
-			std::size_t start{lines_.back()};
-			std::size_t end{start};
-			while (end < end_ && source_[end] != '\n')
-				++end;
-
-			return std::string_view{source_.cbegin() + start, end - start};
-		}
 
 		void add_token(token_type type)
 		{
@@ -223,7 +201,7 @@ namespace lox {
 		void new_line()
 		{
 			++line_;
-			lines_.push_back(current_);
+			source_.add_line(current_);
 		}
 
 		void string()
@@ -347,15 +325,10 @@ namespace lox {
 
 		void error(std::string_view message)
 		{
-			assert(!lines_.empty());
-
 			had_error_ = true;
 			error_handler_(
-				source_.name(),
+				source_,
 				current_,
-				line_number(current_),
-				current_line(),
-				current_ - 1 - lines_.back(),
 				"",
 				message
 			);
@@ -373,12 +346,13 @@ namespace lox {
 		}
 
 		// force start_ to end_ so end of file lexeme is blank.
+		source_.add_line(start_);
 		start_ = end_;
 		add_token(token_type::END_OF_FILE);
 	}
 
 
-	std::tuple<bool, std::vector<token>> scan_source(source const& input)
+	std::tuple<bool, std::vector<token>> scan_source(source& input)
 	{
 		std::vector<token> tokens;
 

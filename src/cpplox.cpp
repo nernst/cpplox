@@ -10,7 +10,7 @@
 
 using namespace lox;
 
-void run(source const& input)
+void run(source& input)
 {
 	auto [had_error, tokens] = scan_source(input);
 	for (auto&& t : tokens)
