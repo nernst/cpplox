@@ -4,6 +4,7 @@
 #include <cassert>
 #include <iostream>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 #include <fmt/format.h>
@@ -102,13 +103,11 @@ namespace lox {
 		}
 
 		explicit scanner(
-			std::string_view source_path,
-			std::string_view source,
+			source const& source,
 			TokenSink&& token_sink = TokenSink(),
 			ErrorHandler&& error_handler = ErrorHandler()
 		)
-		: source_path_{source_path}
-		, source_{source}
+		: source_{source}
 		, token_sink_{std::forward<TokenSink>(token_sink)}
 		, error_handler_{std::forward<ErrorHandler>(error_handler)}
 		, current_{0}
@@ -134,8 +133,7 @@ namespace lox {
 		bool had_error() const { return had_error_; }
 
 	private:
-		std::string_view source_path_;
-		std::string_view source_;
+		source const& source_;
 		TokenSink token_sink_;
 		ErrorHandler error_handler_;
 		std::vector<std::size_t> lines_;
@@ -153,20 +151,20 @@ namespace lox {
 			while (end < end_ && source_[end] != '\n')
 				++end;
 
-			return std::string_view{source_.data() + start, end - start};
+			return std::string_view{source_.cbegin() + start, end - start};
 		}
 
 		void add_token(token_type type)
 		{
 			token_sink_(
-				token{type, std::string_view{source_.data() + start_, current_ - start_}, line_}
+				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, line_}
 			);
 		}
 
 		void add_token(token_type type, token::literal_t literal)
 		{
 			token_sink_(
-				token{type, std::string_view{source_.data() + start_, current_ - start_}, literal, line_}
+				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, literal, line_}
 			);
 		}
 
@@ -190,7 +188,7 @@ namespace lox {
 
 		std::string_view current_lexeme() const {
 			return std::string_view{
-				source_.data() + start_,
+				source_.cbegin() + start_,
 				current_ - start_
 			};
 		}
@@ -353,7 +351,7 @@ namespace lox {
 
 			had_error_ = true;
 			error_handler_(
-				source_path_,
+				source_.name(),
 				current_,
 				line_number(current_),
 				current_line(),
@@ -377,6 +375,17 @@ namespace lox {
 		// force start_ to end_ so end of file lexeme is blank.
 		start_ = end_;
 		add_token(token_type::END_OF_FILE);
+	}
+
+
+	std::tuple<bool, std::vector<token>> scan_source(source const& input)
+	{
+		std::vector<token> tokens;
+
+		auto handler = [&](token&& tok) { tokens.push_back(std::move(tok)); };
+		scanner<decltype(handler)> s{input, std::move(handler)};
+		s.scan();
+		return std::make_tuple(s.had_error(), tokens); 
 	}
 
 
