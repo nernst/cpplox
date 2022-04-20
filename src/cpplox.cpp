@@ -10,12 +10,15 @@
 
 using namespace lox;
 
-void run(std::string_view source_path, std::string_view source)
+void run(source const& input)
 {
-	scanner<> s{source_path, source};
-	s.scan();
+	auto [had_error, tokens] = scan_source(input);
+	for (auto&& t : tokens)
+	{
+		std::cout << str(t) << "\n";
+	}
 
-	std::cout << "had error? " << s.had_error() << std::endl;
+	std::cout << "had error? " << had_error << std::endl;
 }
 
 void run_prompt()
@@ -24,15 +27,16 @@ void run_prompt()
 
 	for (std::string line; std::cout << "> " << std::flush, std::getline(std::cin, line); )
 	{
-		run("<stdin>", line);
+		string_source ss{"<stdin>", line};
+		run(ss);
 	}
 	std::cout << "stopped." << std::endl;
 }
 
 void run_file(std::string_view path)
 {
-	source_file file{path};
-	run(path, file.view());
+	file_source file{path};
+	run(file);
 }
 
 
