@@ -91,10 +91,10 @@ private:
 		return tokens[current_ - 1];
 	}
 
-	void on_error(tyken_type type, std::string_view message)
+	parse_error on_error(tyken_type type, std::string_view message)
 	{
 		// log error
-		throw parse_error{type, message};
+		return parse_error{type, message};
 	}
 
 

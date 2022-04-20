@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cassert>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <boost/interprocess/file_mapping.hpp>
@@ -12,6 +15,10 @@ namespace lox {
 	{
 	public:
 		virtual ~source() { }
+
+		source()
+		: lines_(1, 0)
+		{ }
 
 		virtual std::string const& name() const = 0;
 
@@ -35,6 +42,29 @@ namespace lox {
 
 			return std::string_view{start, len};
 		}
+
+		void add_line(std::size_t offset)
+		{
+			assert(offset <= size());
+			lines_.push_back(offset);
+		}
+
+		// (line_number, line_offset, line)
+		std::tuple<std::size_t, std::size_t, std::string_view> get_line(std::size_t offset) const
+		{
+			assert(offset < size());
+			auto i = std::lower_bound(std::cbegin(lines_), std::cend(lines_), offset);
+			auto end = std::find(cbegin() + *i, cend(), '\n');
+
+			return std::make_tuple(
+				std::distance(std::cbegin(lines_), i),
+				offset - 1 - *i,
+				std::string_view{cbegin() + *i, static_cast<std::size_t>(std::distance(cbegin() + *i, end))}
+			);
+		}
+
+	private:
+		std::vector<std::size_t> lines_;
 	};
 
 
