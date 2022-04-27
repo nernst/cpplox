@@ -25,24 +25,45 @@ public:
 	parse_error& operator=(parse_error&&) = default;
 
 	token_type type() const { return type_; }
-	const char* what() const override { return message_.data(); }
+	const char* what() const noexcept override { return message_.data(); }
 
 private:
 	token_type type_;
 	std::string_view message_;
 };
 
+
 class parser
 {
 public:
 
-	using expressions::expression_ptr;
+	using expression_ptr = expressions::expression_ptr;
 
-	explicit(token_vec&& tokens)
+	explicit parser(token_vec&& tokens)
 	: tokens_{std::move(tokens)}
 	, current_{0}
 	, end_{tokens_.size()}
 	{ }
+
+	parser(parser const&) = delete;
+	parser(parser&&) = default;
+
+	parser& operator=(parser const&) = delete;
+	parser& operator=(parser&&) = default;
+
+
+	expression_ptr parse()
+	{
+		try
+		{
+			return expr();
+		}
+		catch(parse_error const& ex)
+		{
+			std::cerr << "parse error: " << ex.what() << "\n";
+			return expression_ptr{};
+		}
+	}
 
 
 private:
@@ -50,16 +71,29 @@ private:
 	std::size_t current_;
 	std::size_t end_;
 
-	bool match(token_type... types)
+	using expression = expressions::expression;
+	using binary_t = expressions::binary;
+	using unary_t = expressions::unary;
+	using literal_t = expressions::literal;
+	using grouping_t = expressions::grouping;
+
+	template<class T, class... Args>
+	static expression_ptr make(Args&&... args)
+	{ return expression::make<T>(std::forward<Args>(args)...); }
+
+
+	template<token_type... types>
+	bool match()
 	{
-		token_type to_match[sizeof(types...)] = {types...};
+		static_assert(sizeof...(types) > 0);
+		static constexpr token_type to_match[] = {types...};
 
 		for (auto type : to_match)
 		{
 			if (check(type))
 			{
 				advance();
-				return true
+				return true;
 			}
 		}
 
@@ -88,13 +122,24 @@ private:
 	token const& previous() const
 	{
 		assert(current_ != 0);
-		return tokens[current_ - 1];
+		return tokens_[current_ - 1];
 	}
 
-	parse_error on_error(tyken_type type, std::string_view message)
+	parse_error on_error(token const& tok, std::string_view message)
 	{
+		auto const& loc = tok.source_location();
+		auto [line_no, line_off, line] = loc.get_line();
+
+		std::cerr << "in " << loc.where().name() << " (" << line_no << ':' << line_off << "):\n";
+		std::cerr << fmt::format("{:>5} |", line_no) << line << '\n';
+		std::cerr << "      |";
+		for (size_t count = line_off; count; --count)
+			std::cerr << ' ';
+		std::cerr << "^\n";
+		std::cerr << "[line " << line_no << "] Parse Error: " << message << "\n";
+
 		// log error
-		return parse_error{type, message};
+		return parse_error{tok.type(), message};
 	}
 
 
@@ -103,9 +148,37 @@ private:
 		if (check(type))
 			return advance();
 
-		on_error(type, message);
+		throw on_error(peek(), message);
 	}
 
+	void synchronize()
+	{
+		advance();
+
+		while (!is_at_end())
+		{
+			if (previous().type() == token_type::SEMICOLON)
+				return;
+
+			switch(peek().type())
+			{
+				case token_type::CLASS:
+				case token_type::FUN:
+				case token_type::VAR:
+				case token_type::FOR:
+				case token_type::IF:
+				case token_type::WHILE:
+				case token_type::PRINT:
+				case token_type::RETURN:
+					return;
+
+				default:
+					break;
+			}
+
+			advance();
+		}
+	}
 	
 	expression_ptr expr()
 	{
@@ -116,11 +189,11 @@ private:
 	{
 		auto expr = comparison();
 
-		while (match(token_type::BANG_EQUAL, token_type::EQUAL_EQUAL))
+		while (match<token_type::BANG_EQUAL, token_type::EQUAL_EQUAL>())
 		{
-			token const& op = previous();
+			token op = previous();
 			auto right = comparison();
-			expr = expresion::make<binary>(expr, op, right);
+			expr = make<binary_t>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;
@@ -130,11 +203,11 @@ private:
 	{
 		auto expr = term();
 
-		while (match(token_type::GREATER, token_type::GREATER_EQUAL, token_type::LESS, token_type::LESS_EQUAL))
+		while (match<token_type::GREATER, token_type::GREATER_EQUAL, token_type::LESS, token_type::LESS_EQUAL>())
 		{
-			token const& op = previous();
+			token op = previous();
 			auto right = term();
-			expr = expression::make<binary>(expr, op, right);
+			expr = make<binary_t>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;
@@ -144,11 +217,11 @@ private:
 	{
 		auto expr = factor();
 
-		while (match(token_type::MINUS, token_type::PLUS))
+		while (match<token_type::MINUS, token_type::PLUS>())
 		{
-			token const& op = previous();
+			token op = previous();
 			auto right = factor();
-			expr = expr::make<binary>(expr, op, right);
+			expr = make<binary_t>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;
@@ -158,11 +231,11 @@ private:
 	{
 		auto expr = unary();
 
-		while (match(token_type::SLASH, token_type::STAR))
+		while (match<token_type::SLASH, token_type::STAR>())
 		{
-			token const& op = previous();
+			token op = previous();
 			auto right = unary();
-			expr = expr::make<binary>(expr, op, right);
+			expr = make<binary_t>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;
@@ -170,11 +243,11 @@ private:
 
 	expression_ptr unary()
 	{
-		if (match(token_type::BANG, token_type::MINUS))
+		if (match<token_type::BANG, token_type::MINUS>())
 		{
-			token const& op = previous();
+			token op = previous();
 			auto right = unary();
-			return expr::make<unary>(op, right);
+			return make<unary_t>(std::move(op), std::move(right));
 		}
 
 		return primary();
@@ -182,16 +255,19 @@ private:
 
 	expression_ptr primary()
 	{
-		if (match(token_type::FALSE, token_typer::TRUE, token_type::NIL, token::type::NUMBER, token_type::STRING))
-			return expression::make<literal>(previous().literal());
+		if (match<token_type::FALSE, token_type::TRUE, token_type::NIL, token_type::NUMBER, token_type::STRING>())
+			return make<literal_t>(previous().literal());
 		
-		if (match(token_type::LEFT_PAREN)
+		if (match<token_type::LEFT_PAREN>())
 		{
-			auto expr = expression();
-			consume(token_type::RIGHT_PAREN, "Expect ')' after expression.");
+			auto e{expr()};
+			consume(token_type::RIGHT_PAREN, "Expect '}' after expression.");
+
+			return make<grouping_t>(std::move(e));
 		}
 
-		assert(false); // TODO: error handling!
+		throw on_error(peek(), "Expect expression.");
+		return nullptr;
 	}
 };
 

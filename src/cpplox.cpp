@@ -2,23 +2,35 @@
 #include <string>
 #include <string_view>
 #include <sysexits.h>
-#include "lox/utility.hpp"
-#include "lox/source_file.hpp"
-#include "lox/scanner.hpp"
+
 #include "lox/expr.hpp"
+#include "lox/parser.hpp"
+#include "lox/scanner.hpp"
+#include "lox/source_file.hpp"
+#include "lox/utility.hpp"
 
 
 using namespace lox;
+using namespace lox::expressions;
+
+// #define TEST_EXPRESSION
 
 void run(source& input)
 {
 	auto [had_error, tokens] = scan_source(input);
-	for (auto&& t : tokens)
+	if (had_error)
 	{
-		std::cout << str(t) << "\n";
+		std::cerr << "error tokenizing input." << std::endl;
+		return;
 	}
 
-	std::cout << "had error? " << had_error << std::endl;
+	lox::parser parser{std::move(tokens)};
+	auto expr{parser.parse()};
+
+	if (expr != nullptr)
+		std::cout << ast_printer::print(*expr) << std::endl;
+	else
+		std::cerr << "error parsing input." << std::endl;
 }
 
 void run_prompt()
@@ -40,6 +52,7 @@ void run_file(std::string_view path)
 }
 
 
+#ifdef TEXT_EXPRESSION
 void test_expression()
 {
 	using namespace lox::expressions;
@@ -57,11 +70,12 @@ void test_expression()
 	expr->accept(printer);
 	std::cout << printer.result() << std::endl;	
 }
+#endif
 
 
 int main(int argc, const char** argv)
 {
-#if 0
+#ifdef TEST_EXPRESSION
 	lox::ignore_unused(argc, argv);
 	test_expression();
 #else

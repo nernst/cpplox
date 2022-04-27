@@ -3,8 +3,10 @@
 #include <memory>
 #include <sstream>
 #include <typeinfo>
-#include "token.hpp"
+
 #include "literal_holder.hpp"
+#include "token.hpp"
+#include "utility.hpp"
 
 
 namespace lox {

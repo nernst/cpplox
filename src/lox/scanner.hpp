@@ -18,6 +18,7 @@
 #include <system_error>
 #endif
 
+#include "source_file.hpp"
 #include "token.hpp"
 #include "utility.hpp"
 
@@ -135,14 +136,14 @@ namespace lox {
 		void add_token(token_type type)
 		{
 			token_sink_(
-				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, line_}
+				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, location{source_, current_}}
 			);
 		}
 
 		void add_token(token_type type, token::literal_t literal)
 		{
 			token_sink_(
-				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, literal, line_}
+				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, literal, location{source_, current_}}
 			);
 		}
 

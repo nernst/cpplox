@@ -3,8 +3,9 @@
 #include <string_view>
 #include <type_traits>
 #include <fmt/format.h>
-#include "token_type.hpp"
 #include "literal_holder.hpp"
+#include "source_file.hpp"
+#include "token_type.hpp"
 
 namespace lox {
 
@@ -15,15 +16,15 @@ namespace lox {
 		
 		token() = default;
 	
-		token(token_type type, std::string_view	lexeme, literal_t literal, std::size_t line = 0)
-		: type_(type)
-		, lexeme_(lexeme)
-		, literal_(literal)
-		, line_(line)
+		token(token_type type, std::string_view	lexeme, literal_t literal, location const& loc)
+		: type_{type}
+		, lexeme_{lexeme}
+		, literal_{literal}
+		, location_{loc}
 		{ }
 
-		token(token_type type, std::string_view lexeme, std::size_t line = 0)
-		: token(type, lexeme, literal_t(), line)
+		token(token_type type, std::string_view lexeme, location const& loc)
+		: token(type, lexeme, literal_t(), loc)
 		{ }
 
 		token(token const&) = default;
@@ -35,13 +36,15 @@ namespace lox {
 		token_type type() const { return type_; }
 		std::string_view const& lexeme() const { return lexeme_; }
 		literal_t const& literal() const { return literal_; }
-		std::size_t line() const { return line_; }
+		location const& source_location() const { return location_; }
+		std::size_t line() const { return source_location().line(); }
 
 	private:
 		token_type type_;
 		std::string_view lexeme_;
 		literal_t literal_;
-		std::size_t line_;
+		location location_;
+
 	};
 
 	std::string str(token tok)

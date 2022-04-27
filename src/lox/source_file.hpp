@@ -1,3 +1,5 @@
+#pragma once
+
 #include <algorithm>
 #include <cassert>
 #include <iterator>
@@ -10,7 +12,6 @@
 namespace lox {
 
 	// TODO: Handle UTF-8 byte-order-mark
-
 	class source
 	{
 	public:
@@ -52,15 +53,27 @@ namespace lox {
 		// (line_number, line_offset, line)
 		std::tuple<std::size_t, std::size_t, std::string_view> get_line(std::size_t offset) const
 		{
-			assert(offset < size());
+			assert(offset <= size());
 			auto i = std::lower_bound(std::cbegin(lines_), std::cend(lines_), offset);
-			auto end = std::find(cbegin() + *i, cend(), '\n');
+			if (*i >= offset)
+				--i;
+			
+			assert(i != std::cend(lines_));
+			auto line_start{*i};
+			auto end = std::find(cbegin() + line_start, cend(), '\n');
 
 			return std::make_tuple(
 				std::distance(std::cbegin(lines_), i),
-				offset - 1 - *i,
-				std::string_view{cbegin() + *i, static_cast<std::size_t>(std::distance(cbegin() + *i, end))}
+				offset - 1 - line_start,
+				std::string_view{cbegin() + line_start, static_cast<std::size_t>(std::distance(cbegin() + line_start, end))}
 			);
+		}
+
+		std::size_t line_no(std::size_t offset) const
+		{
+			assert(offset < size());
+			auto i = std::lower_bound(std::cbegin(lines_), std::cend(lines_), offset);
+			return std::distance(std::cbegin(lines_), i);
 		}
 
 	private:
@@ -133,6 +146,35 @@ namespace lox {
 		std::string name_;
 		std::string contents_;
 	};
+
+	class location
+	{
+	public:
+		location(source const& where, std::size_t offset)
+		: where_{&where}
+		, offset_{offset}
+		{ }
+
+		location(location const&) = default;
+		location(location&&) = default;
+
+		location& operator=(location const&) = default;
+		location& operator=(location&&) = default;
+
+		source const& where() const { return *where_; }
+		std::size_t offset() const { return offset_; }
+	
+		// [line_no, line_offset, line]
+		std::tuple<std::size_t, std::size_t, std::string_view> get_line() const
+		{ return where().get_line(offset()); }
+
+		std::size_t line() const { return where().line_no(offset()); }
+
+	private:
+		source const* where_;
+		std::size_t offset_;
+	};
+
 
 } // namespace lox
 
