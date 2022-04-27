@@ -4,6 +4,7 @@
 #include <sysexits.h>
 
 #include "lox/expr.hpp"
+#include "lox/interpreter.hpp"
 #include "lox/parser.hpp"
 #include "lox/scanner.hpp"
 #include "lox/source_file.hpp"
@@ -28,7 +29,11 @@ void run(source& input)
 	auto expr{parser.parse()};
 
 	if (expr != nullptr)
+#if 0
 		std::cout << ast_printer::print(*expr) << std::endl;
+#else
+		std::cout << str(interpreter::evaluate(*expr)) << std::endl;	
+#endif
 	else
 		std::cerr << "error parsing input." << std::endl;
 }

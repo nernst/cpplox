@@ -182,7 +182,14 @@ private:
 	
 	expression_ptr expr()
 	{
-		return equality();
+		try
+		{
+			return equality();
+		}
+		catch(parse_error const&)
+		{
+			return expression_ptr{};
+		}
 	}
 
 	expression_ptr equality()
@@ -261,7 +268,7 @@ private:
 		if (match<token_type::LEFT_PAREN>())
 		{
 			auto e{expr()};
-			consume(token_type::RIGHT_PAREN, "Expect '}' after expression.");
+			consume(token_type::RIGHT_PAREN, "Expect ')' after expression.");
 
 			return make<grouping_t>(std::move(e));
 		}
