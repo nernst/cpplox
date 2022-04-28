@@ -9,7 +9,7 @@ namespace lox {
 template<class> inline constexpr bool always_false_v = false;
 
 
-class interpreter : public visitor
+class interpreter : public expression::visitor
 {
 public:
 
@@ -18,16 +18,11 @@ public:
 	static value_t evaluate(expression const& expr)
 	{
 		interpreter inter;
-		inter.visit(expr);
+		expr.accept(inter);
 		return inter.result();
 	}
 
 	value_t const& result() const { return result_; }
-
-	void visit(expression const& expr) override
-	{
-		expr.accept(*this);
-	}
 
 	void visit(unary const& unary) override
 	{

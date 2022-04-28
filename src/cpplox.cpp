@@ -3,6 +3,7 @@
 #include <string_view>
 #include <sysexits.h>
 
+#include "lox/ast_printer.hpp"
 #include "lox/expr.hpp"
 #include "lox/interpreter.hpp"
 #include "lox/parser.hpp"
