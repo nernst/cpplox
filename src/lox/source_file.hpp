@@ -7,6 +7,9 @@
 #include <string_view>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
+#include <fmt/format.h>
+
+#include "exceptions.hpp"
 
 
 namespace lox {
@@ -57,23 +60,34 @@ namespace lox {
 			auto i = std::lower_bound(std::cbegin(lines_), std::cend(lines_), offset);
 			if (*i >= offset)
 				--i;
-			
-			assert(i != std::cend(lines_));
-			auto line_start{*i};
-			auto end = std::find(cbegin() + line_start, cend(), '\n');
+
+			const auto line_no_{line_no(offset)};
+			const auto line_off{line_no(offset) - 1};
+			const auto line_start{lines_[line_off]};
+			const auto line_end{std::find(cbegin() + line_start, cend(), '\n')};
 
 			return std::make_tuple(
-				std::distance(std::cbegin(lines_), i),
-				offset - 1 - line_start,
-				std::string_view{cbegin() + line_start, static_cast<std::size_t>(std::distance(cbegin() + line_start, end))}
+				line_no_,
+				offset - line_start,
+				std::string_view{cbegin() + line_start, static_cast<size_t>(line_end - (cbegin() + line_start))}
 			);
 		}
 
 		std::size_t line_no(std::size_t offset) const
 		{
 			assert(offset < size());
-			auto i = std::lower_bound(std::cbegin(lines_), std::cend(lines_), offset);
-			return std::distance(std::cbegin(lines_), i);
+
+			// not the fastest, but do a linear search to find the line number containing offset
+			// this shouldn't be called often, so we're fine taking the performance hit
+			// for a clearer implementation.
+			for (size_t i = 0; i < lines_.size() - 1; ++i)
+			{
+				if (lines_[i] <= offset && offset < lines_[i + 1])
+					return i + 1;
+			}
+
+			// should be unreachable, probably indicates we didn't build lines_ correctly.
+			LOX_THROW(programming_error, fmt::format("failed to find line number for offset: {}", offset));
 		}
 
 	private:

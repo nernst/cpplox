@@ -136,14 +136,14 @@ namespace lox {
 		void add_token(token_type type)
 		{
 			token_sink_(
-				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, location{source_, current_}}
+				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, location{source_, start_}}
 			);
 		}
 
 		void add_token(token_type type, token::literal_t literal)
 		{
 			token_sink_(
-				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, literal, location{source_, current_}}
+				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, literal, location{source_, start_}}
 			);
 		}
 
