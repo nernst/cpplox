@@ -37,8 +37,6 @@ class parser
 {
 public:
 
-	using expression_ptr = expressions::expression_ptr;
-
 	explicit parser(token_vec&& tokens)
 	: tokens_{std::move(tokens)}
 	, current_{0}
@@ -70,12 +68,6 @@ private:
 	token_vec tokens_;
 	std::size_t current_;
 	std::size_t end_;
-
-	using expression = expressions::expression;
-	using binary_t = expressions::binary;
-	using unary_t = expressions::unary;
-	using literal_t = expressions::literal;
-	using grouping_t = expressions::grouping;
 
 	template<class T, class... Args>
 	static expression_ptr make(Args&&... args)
@@ -200,7 +192,7 @@ private:
 		{
 			token op = previous();
 			auto right = comparison();
-			expr = make<binary_t>(std::move(expr), std::move(op), std::move(right));
+			expr = make<binary>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;
@@ -214,7 +206,7 @@ private:
 		{
 			token op = previous();
 			auto right = term();
-			expr = make<binary_t>(std::move(expr), std::move(op), std::move(right));
+			expr = make<binary>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;
@@ -228,7 +220,7 @@ private:
 		{
 			token op = previous();
 			auto right = factor();
-			expr = make<binary_t>(std::move(expr), std::move(op), std::move(right));
+			expr = make<binary>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;
@@ -242,7 +234,7 @@ private:
 		{
 			token op = previous();
 			auto right = unary();
-			expr = make<binary_t>(std::move(expr), std::move(op), std::move(right));
+			expr = make<binary>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;
@@ -254,7 +246,7 @@ private:
 		{
 			token op = previous();
 			auto right = unary();
-			return make<unary_t>(std::move(op), std::move(right));
+			return make<::lox::unary>(std::move(op), std::move(right));
 		}
 
 		return primary();
@@ -263,14 +255,14 @@ private:
 	expression_ptr primary()
 	{
 		if (match<token_type::FALSE, token_type::TRUE, token_type::NIL, token_type::NUMBER, token_type::STRING>())
-			return make<literal_t>(previous().literal());
+			return make<literal>(previous().literal());
 		
 		if (match<token_type::LEFT_PAREN>())
 		{
 			auto e{expr()};
 			consume(token_type::RIGHT_PAREN, "Expect ')' after expression.");
 
-			return make<grouping_t>(std::move(e));
+			return make<grouping>(std::move(e));
 		}
 
 		throw on_error(peek(), "Expect expression.");

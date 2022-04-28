@@ -12,7 +12,6 @@
 
 
 using namespace lox;
-using namespace lox::expressions;
 
 // #define TEST_EXPRESSION
 

@@ -9,13 +9,13 @@ namespace lox {
 template<class> inline constexpr bool always_false_v = false;
 
 
-class interpreter : public expressions::visitor
+class interpreter : public visitor
 {
 public:
 
 	using value_t = literal_holder;
 
-	static value_t evaluate(expressions::expression const& expr)
+	static value_t evaluate(expression const& expr)
 	{
 		interpreter inter;
 		inter.visit(expr);
@@ -24,12 +24,12 @@ public:
 
 	value_t const& result() const { return result_; }
 
-	void visit(expressions::expression const& expr) override
+	void visit(expression const& expr) override
 	{
 		expr.accept(*this);
 	}
 
-	void visit(expressions::unary const& unary) override
+	void visit(unary const& unary) override
 	{
 		auto right = evaluate(unary.right());
 
@@ -58,7 +58,7 @@ public:
 		}
 	}
 
-	void visit(expressions::binary const& binary) override
+	void visit(binary const& binary) override
 	{
 		value_t left{evaluate(binary.left())};
 		value_t right{evaluate(binary.right())};
@@ -143,12 +143,12 @@ public:
 #undef LOX_RAISE
 	}
 
-	void visit(expressions::grouping const& grouping) override
+	void visit(grouping const& grouping) override
 	{
 		result_ = evaluate(grouping.expr());
 	}
 
-	void visit(expressions::literal const& literal) override
+	void visit(literal const& literal) override
 	{
 		result_ = literal.value();
 	}
