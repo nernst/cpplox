@@ -45,17 +45,16 @@ namespace lox {
 			std::string_view message
 			)
 		{
-			ignore_unused(offset);
+			ignore_unused(where);
 
 			auto [line_no, line_off, line] = s.get_line(offset);
 
-			std::cerr << "in " << s.name() << " (" << line_no << ':' << line_off << "):\n";
+			std::cerr << "in " << s.name() << " (" << line_no << ':' << line_off << "):" << message << '\n';
 			std::cerr << fmt::format("{:>5} |", line_no) << line << '\n';
 			std::cerr << "      |";
 			for (size_t count = line_off; count; --count)
 				std::cerr << ' ';
 			std::cerr << "^\n";
-			std::cerr << "[line " << line_no << "] Error" << where << ": " << message << "\n\n";
 		}
 	};
 
