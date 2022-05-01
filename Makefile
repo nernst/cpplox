@@ -62,7 +62,7 @@ testmake:
 	@echo OBJFILES_REL = [$(OBJFILES_REL)]
 	@echo OBJFILES_DBG = [$(OBJFILES_DBG)]
 	@echo OBJFILES_TST = [$(OBJFILES_TST)]
-	@echo SOURCES = [$(SOURCES)]
+	@echo SOURCES      = [$(SOURCES)]
 	@echo TEST_SOURCES = [$(TEST_SOURCES)]
 	@echo DEPFILES_REL = [$(DEPFILES_REL)]
 	@echo DEPFILES_DBG = [$(DEPFILES_DBG)]

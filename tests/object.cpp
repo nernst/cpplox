@@ -1,7 +1,6 @@
-#include "lox/object.hpp"
+#include <boost/test/unit_test.hpp>
 
-#define BOOST_TEST_MODULE ObjectTests
-#include <boost/test/included/unit_test.hpp>
+#include "lox/object.hpp"
 
 using namespace lox;
 

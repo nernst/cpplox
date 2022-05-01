@@ -180,7 +180,7 @@ namespace lox
 		}
 	};
 
-	std::ostream& operator<<(std::ostream& os, object const& obj)
+	inline std::ostream& operator<<(std::ostream& os, object const& obj)
 	{ return os << obj.str(); }
 
 } // namespace lox

@@ -80,7 +80,7 @@ namespace lox {
 #undef TOKEN_CASE
 	}
 
-	std::ostream& operator<<(std::ostream& os, token_type type)
+	inline std::ostream& operator<<(std::ostream& os, token_type type)
 	{
 		return os << str(type);
 	}
