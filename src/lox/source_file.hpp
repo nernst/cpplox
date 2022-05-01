@@ -40,7 +40,7 @@ namespace lox {
 		std::string_view substr(std::size_t offset, std::size_t len) const
 		{
 			assert(offset < size());
-			assert(offset + len < size());
+			assert(offset + len <= size());
 
 			auto start = cbegin() + offset;
 

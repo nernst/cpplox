@@ -43,7 +43,7 @@ OBJFILES_TST := $(patsubst $(TEST_SOURCE_DIR)/%.cpp,$(TST_OBJ_DIR)/%.o,$(TEST_SO
 DEPFILES_REL := $(patsubst $(SOURCE_DIR)/%.cpp,$(REL_OBJ_DIR)/%.d,$(SOURCES))
 DEPFILES_DBG := $(patsubst $(SOURCE_DIR)/%.cpp,$(DBG_OBJ_DIR)/%.d,$(SOURCES))
 DEPFILES_TST := $(patsubst $(TEST_SOURCE_DIR)/%.cpp,$(TST_OBJ_DIR)/%.d,$(TEST_SOURCES))
-
+DEPFILES := $(DEPFILES_REL) $(DEPFILES_DBG) $(DEPFILES_TST) 
 
 .PHONY: default all testmake debug release clean dirs test unittest
 
@@ -87,17 +87,15 @@ $(TST_DIR)/$(UNITTEST): $(TST_DIR)%: $(TST_OBJ_DIR)%.o $(OBJFILES_TST)
 	$(CC)  -Wl,--start-group $^ -Wl,--end-group -o $@ -Wl,--start-group $(LDFLAGS) -Wl,--end-group
 	@echo "---- created unittest binary ----"
 
-
 -include $(DEPFILES)
--include $(TEST_DEPFILES)
 
 $(REL_OBJ_DIR)/%.o: src/%.cpp
 	mkdir -p $(REL_OBJ_DIR)
-	$(CC) $(RELFLAGS) $(CXXFLAGS) -MF $(patsubst $(REL_OBJ_DIR)/%.o, obj/%.d,$@) -c $< -o $@
+	$(CC) $(RELFLAGS) $(CXXFLAGS) -MF $(patsubst $(REL_OBJ_DIR)/%.o, $(REL_OBJ_DIR)/%.d,$@) -c $< -o $@
 
 $(DBG_OBJ_DIR)/%.o: src/%.cpp
 	mkdir -p $(DBG_OBJ_DIR)
-	$(CC) $(DBGFLAGS) $(CXXFLAGS) -MF $(patsubst $(DBG_OBJ_DIR)/%.o, obj/%.d,$@) -c $< -o $@
+	$(CC) $(DBGFLAGS) $(CXXFLAGS) -MF $(patsubst $(DBG_OBJ_DIR)/%.o, $(DBG_OBJ_DIR)/%.d,$@) -c $< -o $@
 
 $(TST_OBJ_DIR)/%.o: tests/%.cpp
 	@echo "test"
