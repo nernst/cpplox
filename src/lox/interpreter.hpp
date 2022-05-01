@@ -1,28 +1,62 @@
 #pragma once
 
+#include <iostream>
+
+#include "environment.hpp"
 #include "exceptions.hpp"
 #include "expr.hpp"
-#include "literal_holder.hpp"
+#include "statement.hpp"
+#include "utility.hpp"
 
 namespace lox {
 
-template<class> inline constexpr bool always_false_v = false;
-
-
-class interpreter : public expression::visitor
+class interpreter
+	: public expression::visitor
+	, public statement::visitor
 {
 public:
 
-	using value_t = literal_holder;
+	using statement_vec = std::vector<statement_ptr>;
 
-	static value_t evaluate(expression const& expr)
+	void interpret(statement_vec const& statements)
 	{
-		interpreter inter;
-		expr.accept(inter);
-		return inter.result();
+		try
+		{
+			for (auto&& s : statements)
+				execute(*s);
+		}
+		catch(error const& ex)
+		{
+			std::cerr << ex.what() << std::endl;
+		}
 	}
 
-	value_t const& result() const { return result_; }
+	// statements
+
+	void visit(expression_stmt const& stmt) override
+	{
+		evaluate(stmt.expr());
+	}
+
+	void visit(print_stmt const& stmt) override
+	{
+		auto value{evaluate(stmt.expr())};
+		std::cout << value.str() << std::endl;
+	}
+
+	void visit(var_stmt const& stmt) override
+	{
+		object value;
+		if (stmt.initializer())
+			value = evaluate(*stmt.initializer());
+
+		environment_.define(std::string{stmt.name().lexeme()}, std::move(value));
+	}
+
+
+	// expressions
+	object const& result() const { return result_; }
+
 
 	void visit(unary const& unary) override
 	{
@@ -31,21 +65,11 @@ public:
 		switch(unary.op_token().type())
 		{
 			case token_type::BANG:
-				result_ = !is_truthy(right);
+				result_ = !right;
 				break;
 				
 			case token_type::MINUS:
-				{
-					auto visitor = [](auto&& arg) -> value_t
-					{
-						using T = std::decay_t<decltype(arg)>;
-						if constexpr (std::is_same_v<T, double>)
-							return -(arg);
-						else
-							LOX_THROW(type_error, fmt::format("invalid type for unary '-': {}", type(arg)));
-					};
-					result_ = std::visit(visitor, right);
-				}
+				result_ = -right;
 				break;
 		
 			default:
@@ -55,87 +79,54 @@ public:
 
 	void visit(binary const& binary) override
 	{
-		value_t left{evaluate(binary.left())};
-		value_t right{evaluate(binary.right())};
-
-		auto is_equal = [&left, &right]() -> bool
-		{
-			auto outer = [&right](auto&& larg) -> bool
-			{
-				auto inner = [&larg](auto&& rarg) -> bool
-				{
-					using T = std::decay_t<decltype(larg)>;
-					using U = std::decay_t<decltype(rarg)>;
-
-					if constexpr (std::is_same_v<T, U>)
-						return larg == rarg;
-					else
-						return false;
-				};
-				return std::visit(inner, right);
-			};
-			return std::visit(outer, left);
-		};
+		auto left{evaluate(binary.left())};
+		auto right{evaluate(binary.right())};
 
 		switch(binary.op_token().type())
 		{
 			case token_type::BANG_EQUAL:
-				result_ = !is_equal();
-				return;
+				result_ = object{left != right};
+				break;
 
 			case token_type::EQUAL_EQUAL:
-				result_ = is_equal();
-				return;
-
-			default:
+				result_ = object{left == right};
 				break;
-		}
 
-#define LOX_RAISE LOX_THROW(type_error, \
-				fmt::format( \
-					"incompatible types for binary '{}': {} and {}", \
-					binary.op_token().lexeme(), \
-					type(left), \
-					type(right)\
-				) \
-			)
+			case token_type::MINUS:
+				result_ = left - right;
+				break;
 
-		if (!is_same_type(left, right))
-			LOX_RAISE;
+			case token_type::PLUS:
+				result_ = left + right;
+				break;
 
-		switch(binary.op_token().type())
-		{
+			case token_type::SLASH:
+				result_ = left / right;
+				break;
 
-#define NUMERIC_OP(token, op) \
-				case token_type::token: \
-				{ \
-					auto visitor = [&](auto&& arg) -> double \
-					{ \
-						using T = std::decay_t<decltype(arg)>; \
-						if constexpr (std::is_same_v<T, double>) \
-							return arg op std::get<double>(right); \
-						else \
-							LOX_RAISE; \
-					}; \
-					result_ = std::visit(visitor, left); \
-				} \
-				break
+			case token_type::STAR:
+				result_ = left * right;
+				break;
 
-			NUMERIC_OP(MINUS, -);
-			NUMERIC_OP(PLUS, +);
-			NUMERIC_OP(SLASH, /);
-			NUMERIC_OP(STAR, *);
-			NUMERIC_OP(GREATER, >);
-			NUMERIC_OP(GREATER_EQUAL, >=);
-			NUMERIC_OP(LESS, <);
-			NUMERIC_OP(LESS_EQUAL, <=);
+			case token_type::GREATER:
+				result_ = object{left > right};
+				break;
+
+			case token_type::GREATER_EQUAL:
+				result_ = object{left >= right};
+				break;
+
+			case token_type::LESS:
+				result_ = object{left < right};
+				break;
+
+			case token_type::LESS_EQUAL:
+				result_ = object{left <= right};
+				break;
 
 			default:
 				LOX_THROW(programming_error, fmt::format("unhandled binary operator: '{}'", binary.op_token().lexeme()));
 		}
-
-#undef NUMERIC_OP
-#undef LOX_RAISE
 	}
 
 	void visit(grouping const& grouping) override
@@ -148,8 +139,25 @@ public:
 		result_ = literal.value();
 	}
 
+	void visit(variable const& variable) override
+	{
+		result_ = environment_.get(variable.name());
+	}
+
 private:
-	value_t result_;
+	object result_;
+	environment environment_;
+
+	object evaluate(expression const& expr)
+	{
+		expr.accept(*this);
+		return result();
+	}
+
+	void execute(statement const& stmt)
+	{
+		stmt.accept(*this);
+	}
 };
 
 } // namespace lox

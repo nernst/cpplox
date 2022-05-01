@@ -140,10 +140,10 @@ namespace lox {
 			);
 		}
 
-		void add_token(token_type type, token::literal_t literal)
+		void add_token(token_type type, object&& literal)
 		{
 			token_sink_(
-				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, literal, location{source_, start_}}
+				token{type, std::string_view{source_.cbegin() + start_, current_ - start_}, std::move(literal), location{source_, start_}}
 			);
 		}
 
@@ -229,7 +229,7 @@ namespace lox {
 				current_ - (start_ + 1) - 1
 			);
 
-			add_token(token_type::STRING, sv);
+			add_token(token_type::STRING, object{sv});
 		}
 
 		void number()
@@ -249,7 +249,7 @@ namespace lox {
 					start_,
 					current_ - start_
 			))};
-			add_token(token_type::NUMBER, val);
+			add_token(token_type::NUMBER, object{val});
 		}
 
 		void identifier()
