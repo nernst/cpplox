@@ -1,79 +1,108 @@
 SHELL := bash
-PROGRAMS := cpplox
+CC := g++-11
 
 SOURCE_DIR := src
+TEST_SOURCE_DIR := tests
 
-DEBUG_DIR := bin/debug
-DEBUG_OBJ_DIR := obj/debug
+BOOST := $(HOME)/boost_1_79_0
 
-RELEASE_DIR := bin/release
-RELEASE_OBJ_DIR := obj/release
-
-OUTDIRS := $(DEBUG_DIR) $(DEBUG_OBJ_DIR) $(RELEASE_DIR) $(RELEASE_OBJ_DIR)
-
-PROGS_REL := $(addprefix $(RELEASE_DIR)/,$(PROGRAMS))
-PROGS_DEBUG := $(addprefix $(DEBUG_DIR)/,$(PROGRAMS))
-
-SOURCES := $(wildcard $(SOURCE_DIR)/*.cpp)
-PROG_SOURCES := $(addprefix $(SOURCE_DIR)/,$(addsuffix .cpp,$(PROGRAMS)))
-COMMON_SOURCES := $(filter-out $(PROG_SOURCES),$(SOURCES))
-
-OBJFILES_REL := $(patsubst $(SOURCE_DIR)/%.cpp,$(RELEASE_OBJ_DIR)/%.o,$(COMMON_SOURCES))
-OBJFILES_DEBUG := $(patsubst $(SOURCE_DIR)/%.cpp,$(DEBUG_OBJ_DIR)/%.o,$(COMMON_SOURCES))
-
-DEPFILES := $(patsubst $(SOURCE_DIR)/%.cpp,obj/%.d,$(SOURCES))
-
-CXXFLAGS := -std=c++2a -Iinc -Wall -Wextra -Werror -MMD -MP
+# compiler/linker flags
+CXXFLAGS := -std=c++2a -Iinc -Wall -Wextra -Werror -MMD -MP -I$(BOOST)
 DBGFLAGS := -g
 RELFLAGS := -O3
+TESTFLAGS := $(DBGFLAGS) -I$(SOURCE_DIR)
 LIBS := fmt
 LDFLAGS := $(patsubst %,-l%,$(LIBS))
 
-CC := g++
+# binary targets
+PROGRAM := cpplox
+UNITTEST := unittest 
 
-.PHONY: default all testmake debug release clean dirs test
+# binary directories
+TST_DIR := bin/test
+DBG_DIR := bin/debug
+REL_DIR := bin/release
+
+# object directories
+DBG_OBJ_DIR := obj/debug
+REL_OBJ_DIR := obj/release
+TST_OBJ_DIR := obj/test
+
+OUTDIRS := $(DBG_DIR) $(DBG_OBJ_DIR) $(REL_DIR) $(REL_OBJ_DIR) $(TST_DIR) $(TST_OBJ_DIR)
+
+PROG_REL := $(REL_DIR)/$(PROGRAM)
+PROG_DEBUG := $(DEB_DIR)/$(PROGRAM)
+
+SOURCES := $(wildcard $(SOURCE_DIR)/*.cpp)
+TEST_SOURCES := $(wildcard $(TEST_SOURCE_DIR)/*.cpp)
+
+OBJFILES_REL := $(patsubst $(SOURCE_DIR)/%.cpp,$(REL_OBJ_DIR)/%.o,$(SOURCES))
+OBJFILES_DBG := $(patsubst $(SOURCE_DIR)/%.cpp,$(DBG_OBJ_DIR)/%.o,$(SOURCES))
+OBJFILES_TST := $(patsubst $(TEST_SOURCE_DIR)/%.cpp,$(TST_OBJ_DIR)/%.o,$(TEST_SOURCES))
+
+DEPFILES_REL := $(patsubst $(SOURCE_DIR)/%.cpp,$(REL_OBJ_DIR)/%.d,$(SOURCES))
+DEPFILES_DBG := $(patsubst $(SOURCE_DIR)/%.cpp,$(DBG_OBJ_DIR)/%.d,$(SOURCES))
+DEPFILES_TST := $(patsubst $(TEST_SOURCE_DIR)/%.cpp,$(TST_OBJ_DIR)/%.d,$(TEST_SOURCES))
+
+
+.PHONY: default all testmake debug release clean dirs test unittest
 
 default: debug 
 
-all:    dirs clean debug release
+all:    dirs clean debug release unittest
 
-dirs: 
-	@mkdir -p  $(OUTDIRS)
+debug:  $(DBG_DIR)/$(PROGRAM) unittest
 
-debug:  $(PROGS_DEBUG)
+release: $(REL_DIR)/$(PROGRAM) unittest
 
-release: $(PROGS_REL)
+unittest: $(TST_DIR)/$(UNITTEST)
+	$(TST_DIR)/unittest
 
 testmake:
-	@echo OBJFILES_REL = $(OBJFILES_REL)
-	@echo OBJFILES_DEBUG = $(OBJFILES_DEBUG)
-	@echo SRCFILES = $(SOURCES)
-	@echo DEPFILES = $(DEPFILES)
+	@echo OBJFILES_REL = [$(OBJFILES_REL)]
+	@echo OBJFILES_DBG = [$(OBJFILES_DBG)]
+	@echo OBJFILES_TST = [$(OBJFILES_TST)]
+	@echo SOURCES = [$(SOURCES)]
+	@echo TEST_SOURCES = [$(TEST_SOURCES)]
+	@echo DEPFILES_REL = [$(DEPFILES_REL)]
+	@echo DEPFILES_DBG = [$(DEPFILES_DBG)]
+	@echo DEPFILES_TST = [$(DEPFILES_TST)]
 
 clean:
 	rm -rf $(OUTDIRS)
 
-$(PROGS_REL): $(RELEASE_DIR)%: $(RELEASE_OBJ_DIR)%.o $(OBJFILES_REL)
-	mkdir -p $(RELEASE_DIR)
+$(REL_DIR)/$(PROGRAM): $(REL_DIR)%: $(REL_OBJ_DIR)%.o $(OBJFILES_REL)
+	mkdir -p $(REL_DIR)
 	$(CC)  -Wl,--start-group $^ -Wl,--end-group -o $@ -Wl,--start-group $(LDFLAGS) -Wl,--end-group
-#	strip $(PROG_REL)
 	@echo "----  created release binary ----"
 
 
-$(PROGS_DEBUG): $(DEBUG_DIR)%: $(DEBUG_OBJ_DIR)%.o $(OBJFILES_DEBUG)
-	mkdir -p $(DEBUG_DIR)
+$(DBG_DIR)/$(PROGRAM): $(DBG_DIR)%: $(DBG_OBJ_DIR)%.o $(OBJFILES_DBG)
+	mkdir -p $(DBG_DIR)
 	$(CC)  -Wl,--start-group $^ -Wl,--end-group -o $@ -Wl,--start-group $(LDFLAGS) -Wl,--end-group
 	@echo "----  created debug binary ----"
 
+$(TST_DIR)/$(UNITTEST): $(TST_DIR)%: $(TST_OBJ_DIR)%.o $(OBJFILES_TST)
+	mkdir -p $(TST_DIR)
+	$(CC)  -Wl,--start-group $^ -Wl,--end-group -o $@ -Wl,--start-group $(LDFLAGS) -Wl,--end-group
+	@echo "---- created unittest binary ----"
+
+
 -include $(DEPFILES)
+-include $(TEST_DEPFILES)
 
-$(RELEASE_OBJ_DIR)/%.o: src/%.cpp
-	mkdir -p $(RELEASE_OBJ_DIR)
-	$(CC) $(RELFLAGS) $(CXXFLAGS) -MF $(patsubst $(RELEASE_OBJ_DIR)/%.o, obj/%.d,$@) -c $< -o $@
+$(REL_OBJ_DIR)/%.o: src/%.cpp
+	mkdir -p $(REL_OBJ_DIR)
+	$(CC) $(RELFLAGS) $(CXXFLAGS) -MF $(patsubst $(REL_OBJ_DIR)/%.o, obj/%.d,$@) -c $< -o $@
 
-$(DEBUG_OBJ_DIR)/%.o: src/%.cpp
-	mkdir -p $(DEBUG_OBJ_DIR)
-	$(CC) $(DBGFLAGS) $(CXXFLAGS) -MF $(patsubst $(DEBUG_OBJ_DIR)/%.o, obj/%.d,$@) -c $< -o $@
+$(DBG_OBJ_DIR)/%.o: src/%.cpp
+	mkdir -p $(DBG_OBJ_DIR)
+	$(CC) $(DBGFLAGS) $(CXXFLAGS) -MF $(patsubst $(DBG_OBJ_DIR)/%.o, obj/%.d,$@) -c $< -o $@
+
+$(TST_OBJ_DIR)/%.o: tests/%.cpp
+	@echo "test"
+	mkdir -p $(TST_OBJ_DIR)
+	$(CC) $(TESTFLAGS) $(CXXFLAGS) -MF $(patsubst $(TST_OBJ_DIR)/%.o, obj/test/%.d,$@) -c $< -o $@
 
 test: debug
 	./bin/debug/cpplox hello.lox

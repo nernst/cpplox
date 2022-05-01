@@ -4,7 +4,6 @@
 #include <sstream>
 #include <typeinfo>
 
-#include "literal_holder.hpp"
 #include "token.hpp"
 #include "utility.hpp"
 
@@ -16,6 +15,7 @@ namespace lox {
 	class binary;
 	class grouping;
 	class literal;
+	class variable;
 	
 	using expression_ptr = std::unique_ptr<expression>;
 
@@ -31,6 +31,7 @@ namespace lox {
 			virtual void visit(binary const& expr) = 0;
 			virtual void visit(grouping const& expr) = 0;
 			virtual void visit(literal const& expr) = 0;
+			virtual void visit(variable const& expr) = 0;
 		};
 
 	public:
@@ -136,8 +137,12 @@ namespace lox {
 	{
 	public:
 
-		explicit literal(int value)
-		: value_{static_cast<double>(value)}
+		explicit literal(object&& value)
+		: value_{std::move(value)}
+		{ }
+
+		explicit literal(object const& value)
+		: value_{value}
 		{ }
 
 		explicit literal(double value)
@@ -145,7 +150,7 @@ namespace lox {
 		{ }
 
 		explicit literal(const char* value)
-		: value_{std::string_view{value}}
+		: value_{std::string{value}}
 		{ }
 
 		explicit literal(bool value)
@@ -157,14 +162,6 @@ namespace lox {
 		{ }
 
 
-		explicit literal(literal_holder const& value)
-		: value_{value}
-		{ }
-
-		explicit literal(literal_holder&& value)
-		: value_{std::move(value)}
-		{ }
-
 		literal(literal const&) = delete;
 		literal(literal&&) = default;
 
@@ -175,12 +172,36 @@ namespace lox {
 		explicit operator T() const
 		{ return std::get<T>(value_); }
 
-		literal_holder const& value() const { return value_; }
+		object const& value() const { return value_; }
 
 		void accept(visitor& v) const override { v.visit(*this); }
 
 	private:
-		literal_holder value_;
+		object value_;
 	};
+
+	
+	class variable : public expression
+	{
+	public:
+		template<typename T>
+		explicit variable(T&& name)
+		: name_{std::forward<T>(name)}
+		{ }
+
+		variable(variable const&) = delete;
+		variable(variable&&) = default;
+
+		variable& operator=(variable const&) = delete;
+		variable& operator=(variable&&) = default;
+
+		std::string name() const { return name_; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		std::string name_;
+	};
+
 } // namespace lox
 

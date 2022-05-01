@@ -1,5 +1,10 @@
 var language = "lox";
+print language;
+
 var multiline = "this is a test
 of a multi line string";
+print multiline;
+
 var pi = 3.14159;
+print pi;
 

@@ -75,7 +75,8 @@ namespace lox {
 
 		std::size_t line_no(std::size_t offset) const
 		{
-			assert(offset < size());
+			if (offset >= size())
+				return lines_.size() - 1;
 
 			// not the fastest, but do a linear search to find the line number containing offset
 			// this shouldn't be called often, so we're fine taking the performance hit

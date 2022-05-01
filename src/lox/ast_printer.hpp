@@ -22,6 +22,7 @@ namespace lox
 		void visit(binary const& expr) override;
 		void visit(grouping const& expr) override;
 		void visit(literal const& expr) override;
+		void visit(variable const& expr) override;
 
 		std::string const& result() const { return result_; }
 
@@ -47,8 +48,8 @@ namespace lox
 					using T = std::decay_t<decltype(arg)>;
 					if constexpr (std::is_same_v<T, const char*> || std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>)
 						os << arg;
-					else if constexpr (std::is_same_v<T, literal_holder>)
-						os << str(arg);
+					else if constexpr (std::is_same_v<T, object>)
+						os << arg.str();
 					else
 						os << "<~~ missing type overload: " << typeid(arg).name() << " ~~>";
 				};
@@ -87,7 +88,12 @@ namespace lox
 
 	inline void ast_printer::visit(literal const& expr)
 	{
-		result_ = str(expr.value());
+		result_ = expr.value().str();
+	}
+
+	inline void ast_printer::visit(variable const& expr)
+	{
+		result_ = expr.name();
 	}
 
 
