@@ -12,6 +12,13 @@ class environment
 {
 	using value_map = std::unordered_map<std::string, object>;
 
+	template<typename T>
+	[[noreturn]]
+	static void undefined(T const& name)
+	{
+		throw runtime_error{fmt::format("Undefined variable '{}'.", name)};
+	}
+
 public:
 	environment() {}
 
@@ -24,11 +31,21 @@ public:
 		);
 	}
 
+	template<typename U>
+	void assign(std::string const& name, U&& value)
+	{
+		auto i = values_.find(name);
+		if (i == end(values_))
+			undefined(name);
+
+		i->second = std::forward<U>(value);
+	}
+
 	object get(std::string const& name) const
 	{
 		auto i = values_.find(name);
 		if (i == values_.end())
-			throw runtime_error(fmt::format("Undefined variable '{}'.", name));
+			undefined(name);
 
 		return i->second;
 	}

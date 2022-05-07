@@ -20,15 +20,8 @@ public:
 
 	void interpret(statement_vec const& statements)
 	{
-		try
-		{
-			for (auto&& s : statements)
-				execute(*s);
-		}
-		catch(error const& ex)
-		{
-			std::cerr << ex.what() << std::endl;
-		}
+		for (auto&& s : statements)
+			execute(*s);
 	}
 
 	// statements
@@ -142,6 +135,13 @@ public:
 	void visit(variable const& variable) override
 	{
 		result_ = environment_.get(variable.name());
+	}
+
+	void visit(assign const& expr) override
+	{
+		auto value = evaluate(expr.value());
+		environment_.assign(expr.name(), value);
+		result_ = value;
 	}
 
 private:

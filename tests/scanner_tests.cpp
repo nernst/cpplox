@@ -92,3 +92,22 @@ while
 	BOOST_TEST(!had_error);
 }
 
+BOOST_AUTO_TEST_CASE(literals)
+{
+	auto test = R"test(
+1234.00
+"asdf"
+"this
+is a multiline
+string"
+true
+false
+nil
+)test"s;
+
+	string_source s{"literals", test};
+	auto [had_error, tokens] = run_scanner(s);
+
+	BOOST_TEST(!had_error);
+}
+

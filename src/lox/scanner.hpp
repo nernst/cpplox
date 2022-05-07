@@ -9,14 +9,8 @@
 #include <vector>
 #include <fmt/format.h>
 
-#define NO_FROM_CHARS
-
-#ifdef NO_FROM_CHARS
-#include <boost/lexical_cast.hpp>
-#else
 #include <charconv>
 #include <system_error>
-#endif
 
 #include "source_file.hpp"
 #include "token.hpp"
@@ -24,20 +18,20 @@
 
 namespace lox {
 
-	double double_from_chars(std::string_view sv)
+	inline double double_from_chars(std::string_view sv)
 	{
 		double val;
-#ifdef NO_FROM_CHARS
-		val = boost::lexical_cast<double>(sv);
-#else
 		auto [ptr, ec] {std::from_chars(std::begin(sv), std::end(sv), val) };
-		assert(ec == std::errc()); // TODO: Probably should never happen, but sanity check?
-#endif
+		assert(ec == std::errc()); // should never happen (we've already assured the input), but sanity check
 		return val;
 	}
 
 	struct scanner_error_handler
 	{
+		scanner_error_handler(std::ostream& err = std::cerr)
+		: err_{err}
+		{ }
+
 		void operator()(
 			source const& s,
 			std::size_t offset, 
@@ -49,13 +43,15 @@ namespace lox {
 
 			auto [line_no, line_off, line] = s.get_line(offset);
 
-			std::cerr << "in " << s.name() << " (" << line_no << ':' << line_off << "):" << message << '\n';
-			std::cerr << fmt::format("{:>5} |", line_no) << line << '\n';
-			std::cerr << "      |";
+			err_ << "in " << s.name() << " (" << line_no << ':' << line_off << "):" << message << '\n';
+			err_ << fmt::format("{:>5} |", line_no) << line << '\n';
+			err_ << "      |";
 			for (size_t count = line_off; count; --count)
-				std::cerr << ' ';
-			std::cerr << "^\n";
+				err_ << ' ';
+			err_ << "^\n";
 		}
+
+		std::ostream& err_;
 	};
 
 	struct token_handler
@@ -352,7 +348,7 @@ namespace lox {
 	}
 
 
-	std::tuple<bool, std::vector<token>> scan_source(source& input)
+	inline std::tuple<bool, std::vector<token>> scan_source(source& input)
 	{
 		std::vector<token> tokens;
 

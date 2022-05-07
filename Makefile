@@ -6,13 +6,15 @@ TEST_SOURCE_DIR := tests
 
 BOOST := $(HOME)/boost_1_79_0
 
+WARNINGS := -Wall -Wextra -Werror -Wpessimizing-move -Wredundant-move -Wold-style-cast -Woverloaded-virtual
+
 # compiler/linker flags
-CXXFLAGS := -std=c++2a -Iinc -Wall -Wextra -Werror -MMD -MP -I$(BOOST)
+CXXFLAGS := -std=c++2a -Iinc $(WARNINGS) -MMD -MP -isystem$(BOOST) -fsanitize=undefined,address
 DBGFLAGS := -g
 RELFLAGS := -O3
 TESTFLAGS := $(DBGFLAGS) -I$(SOURCE_DIR)
 LIBS := fmt
-LDFLAGS := $(patsubst %,-l%,$(LIBS))
+LDFLAGS := $(patsubst %,-l%,$(LIBS)) -fsanitize=undefined,address
 
 # binary targets
 PROGRAM := cpplox
@@ -102,6 +104,5 @@ $(TST_OBJ_DIR)/%.o: tests/%.cpp
 	mkdir -p $(TST_OBJ_DIR)
 	$(CC) $(TESTFLAGS) $(CXXFLAGS) -MF $(patsubst $(TST_OBJ_DIR)/%.o, obj/test/%.d,$@) -c $< -o $@
 
-test: debug
-	./bin/debug/cpplox hello.lox
+test: unittest
 
