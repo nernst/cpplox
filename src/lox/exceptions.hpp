@@ -118,6 +118,7 @@ namespace lox
 	};
 
 	template<typename ExType, typename... Args>
+	[[noreturn]]
 	void throwex(Args&&... args, const std::source_location location = std::source_location::current())
 	{
 		throw ExType{std::forward<Args>(args)..., location};

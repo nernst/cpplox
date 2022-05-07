@@ -16,12 +16,26 @@ namespace lox {
 	class grouping;
 	class literal;
 	class variable;
+	class assign;
 	
 	using expression_ptr = std::unique_ptr<expression>;
+
+	enum class expression_type
+	{
+		UNARY,
+		BINARY,
+		GROUPING,
+		LITERAL,
+		VARIABLE,
+		ASSIGN
+	};
 
 	class expression
 	{
 	public:
+
+		using enum expression_type;
+
 		class visitor
 		{
 		public:
@@ -32,6 +46,7 @@ namespace lox {
 			virtual void visit(grouping const& expr) = 0;
 			virtual void visit(literal const& expr) = 0;
 			virtual void visit(variable const& expr) = 0;
+			virtual void visit(assign const& expr) = 0;
 		};
 
 	public:
@@ -45,6 +60,7 @@ namespace lox {
 		virtual ~expression() { }
 
 		virtual void accept(visitor& v) const = 0;
+		virtual expression_type type() const = 0;
 
 		template<class ExprType, class... Args>
 		static expression_ptr make(Args&&... args)
@@ -67,6 +83,8 @@ namespace lox {
 		unary(unary&& other) = default;
 		unary& operator=(unary const&) = delete;
 		unary& operator=(unary&& other) = default;
+
+		expression_type type() const override { return UNARY; }
 
 		token op_token() const { return op_token_; }
 		expression const& right() const { return *right_; }
@@ -97,6 +115,8 @@ namespace lox {
 		binary& operator=(binary const&) = delete;
 		binary& operator=(binary&&) = default;
 
+		expression_type type() const override { return BINARY; }
+
 		expression const& left() const { return *left_; }
 		token op_token() const { return op_token_; }
 		expression const& right() const { return *right_; }
@@ -124,6 +144,8 @@ namespace lox {
 
 		grouping& operator=(grouping const&) = delete;
 		grouping& operator=(grouping&&) = default;
+
+		expression_type type() const override { return GROUPING; }
 
 		expression const& expr() const { return *expr_; }
 
@@ -168,6 +190,8 @@ namespace lox {
 		literal& operator=(literal const&) = delete;
 		literal& operator=(literal&&) = default;
 
+		expression_type type() const override { return LITERAL; }
+
 		template<typename T>
 		explicit operator T() const
 		{ return std::get<T>(value_); }
@@ -185,8 +209,8 @@ namespace lox {
 	{
 	public:
 		template<typename T>
-		explicit variable(T&& name)
-		: name_{std::forward<T>(name)}
+		explicit variable(T&& name_token)
+		: name_token_{std::forward<T>(name_token)}
 		{ }
 
 		variable(variable const&) = delete;
@@ -195,12 +219,45 @@ namespace lox {
 		variable& operator=(variable const&) = delete;
 		variable& operator=(variable&&) = default;
 
-		std::string name() const { return name_; }
+		expression_type type() const override { return VARIABLE; }
+
+		token const& name_token() const { return name_token_; }
+		std::string name() const { return std::string{name_token_.lexeme()}; }
 
 		void accept(visitor& v) const override { v.visit(*this); }
 
 	private:
-		std::string name_;
+		token name_token_;
+	};
+
+	class assign : public expression
+	{
+	public:
+		template<typename T>
+		explicit assign(T&& name_token, expression_ptr&& value)
+		: name_token_{std::forward<T>(name_token)}
+		, value_{std::move(value)}
+		{
+			assert(value_);
+		}
+
+		assign(assign const&) = delete;
+		assign(assign&&) = default;
+
+		assign& operator=(assign const&) = delete;
+		assign& operator=(assign&&) = default;
+
+		expression_type type() const override { return ASSIGN; }
+
+		token const& name_token() const { return name_token_; }
+		std::string name() const { return std::string{name_token_.lexeme()}; }
+		expression const& value() const{ return *value_; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		token name_token_;
+		expression_ptr value_;
 	};
 
 } // namespace lox

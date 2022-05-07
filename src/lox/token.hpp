@@ -45,7 +45,7 @@ namespace lox {
 
 	};
 
-	std::string str(token const& tok)
+	inline std::string str(token const& tok)
 	{
 		return fmt::format(
 			"[type={}, lexeme={}, line={}, literal={}]",

@@ -23,6 +23,7 @@ namespace lox
 		void visit(grouping const& expr) override;
 		void visit(literal const& expr) override;
 		void visit(variable const& expr) override;
+		void visit(assign const& expr) override;
 
 		std::string const& result() const { return result_; }
 
@@ -94,6 +95,11 @@ namespace lox
 	inline void ast_printer::visit(variable const& expr)
 	{
 		result_ = expr.name();
+	}
+
+	inline void ast_printer::visit(assign const& expr)
+	{
+		result_ = parenthesize("=", expr.name(), print(expr.value()));
 	}
 
 

@@ -163,12 +163,31 @@ private:
 	{
 		try
 		{
-			return equality();
+			return assignment();
 		}
 		catch(parse_error const&)
 		{
 			return expression_ptr{};
 		}
+	}
+
+	expression_ptr assignment()
+	{
+		auto expr{equality()};
+
+		if (match<token_type::EQUAL>())
+		{
+			token equals{previous()};
+			auto value = assignment();
+
+			auto var = dynamic_cast<variable const*>(expr.get());
+			if (var != nullptr)
+				return make_expr<assign>(var->name_token(), std::move(value));
+
+			on_error(equals, "Invalid assignment target.");
+		}
+
+		return expr;
 	}
 
 	expression_ptr equality()
@@ -245,7 +264,7 @@ private:
 			return make_expr<literal>(previous().literal());
 
 		if (match<token_type::IDENTIFIER>())
-			return make_expr<variable>(previous().lexeme());
+			return make_expr<variable>(previous());
 		
 		if (match<token_type::LEFT_PAREN>())
 		{
