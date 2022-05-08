@@ -76,6 +76,15 @@ public:
 		execute_block(stmt.statements());
 	}
 
+	void visit(if_stmt const& stmt) override
+	{
+		bool condition{evaluate(stmt.condition())};
+		if (condition)
+			execute(stmt.then_branch());
+		else if (auto&& else_branch = stmt.else_branch())
+			execute(*else_branch);
+	}
+
 
 	// expressions
 	object const& result() const { return result_; }
