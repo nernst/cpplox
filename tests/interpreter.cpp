@@ -102,3 +102,49 @@ global c
 	BOOST_REQUIRE_EQUAL(output, expected);
 }
 
+
+BOOST_AUTO_TEST_CASE(interpreter_if)
+{
+	auto test = R"test(
+var a = nil;
+if (true)
+	a = true;
+else
+	a = false;
+print a;
+)test"s;
+
+	auto expected = R"expected(true
+)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("if", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(output, expected);
+}
+
+
+BOOST_AUTO_TEST_CASE(interpreter_if_else)
+{
+	auto test = R"test(
+var a = nil;
+if (false)
+	a = true;
+else
+	a = false;
+print a;
+)test"s;
+
+	auto expected = R"expected(false
+)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("if-else", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(output, expected);
+}
+

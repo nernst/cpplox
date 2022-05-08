@@ -308,6 +308,9 @@ private:
 
 	statement_ptr statement()
 	{
+		if (match<token_type::IF>())
+			return if_statement();
+
 		if (match<token_type::PRINT>())
 			return print_statement();
 
@@ -315,6 +318,22 @@ private:
 			return make_stmt<block_stmt>(block());
 
 		return expression_statement();
+	}
+
+	statement_ptr if_statement()
+	{
+		consume(token_type::LEFT_PAREN, "Expect '(' after 'if'.");
+
+		auto condition = expr();
+		consume(token_type::RIGHT_PAREN, "Expection ')' after if condition.");
+
+		statement_ptr then_branch = statement();
+		statement_ptr else_branch;
+
+		if (match<token_type::ELSE>())
+			else_branch = statement();
+
+		return make_stmt<if_stmt>(std::move(condition), std::move(then_branch), std::move(else_branch));
 	}
 
 	statement_ptr print_statement()

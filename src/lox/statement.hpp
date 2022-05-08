@@ -1,6 +1,8 @@
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 #include "expr.hpp"
 
@@ -14,6 +16,7 @@ namespace lox {
 	class print_stmt;
 	class var_stmt;
 	class block_stmt;
+	class if_stmt;
 
 	class statement
 	{
@@ -27,6 +30,7 @@ namespace lox {
 			virtual void visit(print_stmt const& stmt) = 0;
 			virtual void visit(var_stmt const& stmt) = 0;
 			virtual void visit(block_stmt const& stmt) = 0;
+			virtual void visit(if_stmt const& smt) = 0;
 		};
 
 	public:
@@ -111,6 +115,32 @@ namespace lox {
 
 	private:
 		statements_t statements_;
+	};
+
+	class if_stmt : public statement
+	{
+	public:
+		explicit if_stmt(expression_ptr&& condition, statement_ptr&& then_branch, statement_ptr&& else_branch = statement_ptr{})
+		: condition_{std::move(condition)}
+		, then_branch_{std::move(then_branch)}
+		, else_branch_{std::move(else_branch)}
+		{
+			assert(condition_);
+			assert(then_branch_);
+		}
+
+		expression const& condition() const { return *condition_; }
+		statement const& then_branch() const { return *then_branch_; }
+		
+		std::optional<std::reference_wrapper<const statement>> else_branch() const
+		{ return else_branch_ ? std::make_optional(std::cref(*else_branch_)) : std::nullopt; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		expression_ptr condition_;
+		statement_ptr then_branch_;
+		statement_ptr else_branch_;
 	};
 
 } // namespace lox

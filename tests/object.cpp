@@ -1,3 +1,5 @@
+#include <array>
+#include <utility>
 #include <boost/test/unit_test.hpp>
 
 #include "lox/object.hpp"
@@ -84,4 +86,21 @@ BOOST_AUTO_TEST_CASE(str_conv)
 	BOOST_TEST(t.str() == "true");
 	BOOST_TEST(f.str() == "false");
 }
+
+BOOST_AUTO_TEST_CASE(bool_conv)
+{
+	std::array<std::pair<object, bool>, 5> tests{{
+		{ object{true}, true },
+		{ object{false}, false },
+		{ object{}, false },
+		{ object{"asdf"}, true},
+		{ object{123.456}, true},
+	}};
+
+	for (auto&& p : tests)
+	{
+		BOOST_REQUIRE_EQUAL(bool{p.first}, p.second);
+	}
+}
+
 
