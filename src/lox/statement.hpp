@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 #include "expr.hpp"
 
 namespace lox {
@@ -12,6 +13,7 @@ namespace lox {
 	class expression_stmt;
 	class print_stmt;
 	class var_stmt;
+	class block_stmt;
 
 	class statement
 	{
@@ -24,6 +26,7 @@ namespace lox {
 			virtual void visit(expression_stmt const& stmt) = 0;
 			virtual void visit(print_stmt const& stmt) = 0;
 			virtual void visit(var_stmt const& stmt) = 0;
+			virtual void visit(block_stmt const& stmt) = 0;
 		};
 
 	public:
@@ -91,6 +94,23 @@ namespace lox {
 	private:
 		token name_;
 		expression_ptr initializer_;
+	};
+
+	class block_stmt : public statement
+	{
+	public:
+		using statements_t = std::vector<statement_ptr>;
+
+		explicit block_stmt(statements_t&& statements)
+		: statements_{std::move(statements)}
+		{ }
+
+		statements_t const& statements() const { return statements_; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		statements_t statements_;
 	};
 
 } // namespace lox

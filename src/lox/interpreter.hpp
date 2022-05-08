@@ -14,15 +14,37 @@ class interpreter
 	: public expression::visitor
 	, public statement::visitor
 {
+	std::istream* stdin_;
+	std::ostream* stdout_;
+	std::ostream* stderr_;
+
 public:
 
 	using statement_vec = std::vector<statement_ptr>;
+	using environment_stack = std::vector<environment>;
+
+	interpreter(
+		std::istream* stdin,
+		std::ostream* stdout,
+		std::ostream* stderr
+	)
+		: stdin_{stdin}
+		, stdout_{stdout}
+		, stderr_{stderr}
+	{
+		assert(stdin_);
+		assert(stdout_);
+		assert(stderr_);
+	}
+
+	environment& global_env() { return stack_.global(); }
+	environment& current_env() { return stack_.current(); }
 
 	void interpret(statement_vec const& statements)
 	{
-		for (auto&& s : statements)
-			execute(*s);
+		execute_block(statements);
 	}
+
 
 	// statements
 
@@ -34,7 +56,7 @@ public:
 	void visit(print_stmt const& stmt) override
 	{
 		auto value{evaluate(stmt.expr())};
-		std::cout << value.str() << std::endl;
+		*stdout_ << value.str() << std::endl;
 	}
 
 	void visit(var_stmt const& stmt) override
@@ -43,7 +65,15 @@ public:
 		if (stmt.initializer())
 			value = evaluate(*stmt.initializer());
 
-		environment_.define(std::string{stmt.name().lexeme()}, std::move(value));
+		current_env().define(std::string{stmt.name().lexeme()}, std::move(value));
+	}
+
+	void visit(block_stmt const& stmt) override
+	{
+		scope s{&stack_};
+		ignore_unused(s);
+
+		execute_block(stmt.statements());
 	}
 
 
@@ -134,19 +164,19 @@ public:
 
 	void visit(variable const& variable) override
 	{
-		result_ = environment_.get(variable.name());
+		result_ = current_env().get(variable.name());
 	}
 
 	void visit(assign const& expr) override
 	{
 		auto value = evaluate(expr.value());
-		environment_.assign(expr.name(), value);
+		current_env().assign(expr.name(), value);
 		result_ = value;
 	}
 
 private:
 	object result_;
-	environment environment_;
+	scope_stack stack_;
 
 	object evaluate(expression const& expr)
 	{
@@ -157,6 +187,12 @@ private:
 	void execute(statement const& stmt)
 	{
 		stmt.accept(*this);
+	}
+
+	void execute_block(block_stmt::statements_t const& statements)
+	{
+		for (auto&& stmt : statements)
+			execute(*stmt);
 	}
 };
 

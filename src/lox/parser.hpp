@@ -311,6 +311,9 @@ private:
 		if (match<token_type::PRINT>())
 			return print_statement();
 
+		if (match<token_type::LEFT_BRACE>())
+			return make_stmt<block_stmt>(block());
+
 		return expression_statement();
 	}
 
@@ -328,6 +331,17 @@ private:
 		consume(token_type::SEMICOLON, "Expect ';' after expression.");
 
 		return make_stmt<expression_stmt>(std::move(value));
+	}
+
+	block_stmt::statements_t block()
+	{
+		block_stmt::statements_t statements;
+
+		while (!check(token_type::RIGHT_BRACE) && !is_at_end())
+			statements.push_back(declaration());
+
+		consume(token_type::RIGHT_BRACE, "Expect '}' after block.");
+		return statements;
 	}
 };
 

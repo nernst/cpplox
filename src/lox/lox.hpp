@@ -15,17 +15,18 @@ namespace lox {
 	public:
 
 		explicit Lox(
-			std::istream* input = nullptr, // unowned
-			std::ostream* output = nullptr, // unowned
-			std::ostream* error = nullptr // unowned
+			std::istream* stdin = nullptr, // unowned
+			std::ostream* stdout = nullptr, // unowned
+			std::ostream* stderr = nullptr // unowned
 		)
-		: input_{input ? input : &std::cin}
-		, output_{output ? output : &std::cout}
-		, error_{error ? error : &std::cerr}
+		: stdin_{stdin == nullptr ? &std::cin : stdin}
+		, stdout_{stdout == nullptr ? &std::cout : stdout}
+		, stderr_{stderr == nullptr ? &std::cerr : stderr}
+		, interpreter_{stdin_, stdout_, stderr_}
 		{
-			assert(input_);
-			assert(output_);
-			assert(error_);
+			assert(stdin_);
+			assert(stdout_);
+			assert(stderr_);
 		}
 
 		~Lox(){}
@@ -36,9 +37,9 @@ namespace lox {
 		Lox& operator=(Lox const&) = delete;
 		Lox& operator=(Lox&&) = default;
 
-		std::istream& input() const { assert(input_); return *input_; }
-		std::ostream& output() const { assert(output_); return *output_; }
-		std::ostream& error() const { assert(error_); return *error_; }
+		std::istream& stdin() const { return *stdin_; }
+		std::ostream& stdout() const { return *stdout_; }
+		std::ostream& stderr() const { return *stderr_; }
 
 		bool had_error() const { return had_error_; }
 		bool had_parse_error() const { return had_parse_error_; }
@@ -51,7 +52,7 @@ namespace lox {
 			auto [had_error, tokens] = scan_source(input);
 			if (had_error)
 			{
-				error() << "error tokenizing input." << std::endl;
+				stderr() << "error tokenizing input." << std::endl;
 				return;
 			}
 
@@ -69,19 +70,19 @@ namespace lox {
 				catch(runtime_error const& ex)
 				{
 					had_runtime_error_ = true;
-					*error_ << ex.what() << std::endl;
+					stderr() << ex.what() << std::endl;
 				}
 			}
 		}
 	
 	private:
+		std::istream* stdin_;
+		std::ostream* stdout_;
+		std::ostream* stderr_;
 		interpreter interpreter_;
 		bool had_error_ = false;
 		bool had_parse_error_ = false;
 		bool had_runtime_error_ = false;
-		std::istream* input_;
-		std::ostream* output_;
-		std::ostream* error_;
 	};
 
 } // namespace lox
