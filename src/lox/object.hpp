@@ -26,7 +26,14 @@ namespace lox
 				if constexpr (std::is_same_v<ActualT, T>)
 					return arg;
 
-				throw type_error{fmt::format("Cannot get {}. Actual type: {}.", typeid(T).name(), typeid(ActualT).name())};
+				auto msg{
+					fmt::format(
+						"Cannot get {}. Actual type: {}.",
+						typeid(T).name(), 
+						typeid(ActualT).name()
+					)
+				};
+				throw type_error{std::move(msg)};
 			}
 		};
 
@@ -76,7 +83,12 @@ namespace lox
 				case type::NIL: return "nil";
 
 				default:
-					throw programming_error{fmt::format("get_type_str: unhandled type: {}", get_type())};
+					throw programming_error{
+						fmt::format(
+							"get_type_str: unhandled type: {}",
+							static_cast<int>(get_type())
+						)
+					};
 			}
 		}
 
@@ -126,7 +138,8 @@ namespace lox
 			if (get_type() == type::DOUBLE)
 				return object{-static_cast<double>(*this)};
 
-			throw type_error{fmt::format("cannot apply unary '-' to type {}.", get_type_str())};
+			auto msg {fmt::format("cannot apply unary '-' to type {}.", get_type_str())};
+			throw type_error{std::move(msg)};
 		}
 
 		object operator!() const
@@ -174,7 +187,16 @@ namespace lox
 		auto numeric_op(object const& other, const char* op_token, Op op) const -> decltype(op(0.0, 0.0))
 		{
 			if (get_type() != type::DOUBLE || get_type() != other.get_type())
-				throw type_error{fmt::format("unsupported operand type(s) for '{}': '{}' and '{}'", op_token, get_type_str(), other.get_type_str())};
+			{
+				throw type_error{
+					fmt::format(
+						"unsupported operand type(s) for '{}': '{}' and '{}'", 
+						op_token, 
+						get_type_str(), 
+						other.get_type_str()
+					)
+				};
+			}
 
 			return op(static_cast<double>(*this), static_cast<double>(other));
 		}

@@ -17,9 +17,8 @@ namespace lox {
 	{
 		using value_map = std::unordered_map<std::string, object>;
 
-		template<typename T>
 		[[noreturn]]
-		static void undefined(T const& name)
+		static void undefined(std::string const& name)
 		{
 			throw runtime_error{fmt::format("Undefined variable '{}'.", name)};
 		}
