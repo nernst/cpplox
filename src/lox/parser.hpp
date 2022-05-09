@@ -260,7 +260,7 @@ private:
 
 	expression_ptr primary()
 	{
-		if (match<token_type::FALSE, token_type::TRUE, token_type::NIL, token_type::NUMBER, token_type::STRING>())
+		if (match<token_type::FALSE_L, token_type::TRUE_L, token_type::NIL, token_type::NUMBER, token_type::STRING>())
 			return make_expr<literal>(previous().literal());
 
 		if (match<token_type::IDENTIFIER>())

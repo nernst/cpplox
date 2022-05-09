@@ -79,7 +79,7 @@ namespace lox {
 				{"and", token_type::AND},
 				{"class", token_type::CLASS},
 				{"else", token_type::ELSE},
-				{"false", token_type::FALSE},
+				{"false", token_type::FALSE_L},
 				{"for", token_type::FOR},
 				{"fun", token_type::FUN},
 				{"if", token_type::IF},
@@ -89,7 +89,7 @@ namespace lox {
 				{"return", token_type::RETURN},
 				{"super", token_type::SUPER},
 				{"this", token_type::THIS},
-				{"true", token_type::TRUE},
+				{"true", token_type::TRUE_L},
 				{"var", token_type::VAR},
 				{"while", token_type::WHILE},
 			};

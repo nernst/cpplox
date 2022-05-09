@@ -105,7 +105,12 @@ public:
 				break;
 		
 			default:
-				LOX_THROW(programming_error, fmt::format("unsupported token: {}", unary.op_token().type()));		
+				throw programming_error{
+					fmt::format(
+						"unsupported token: {}",
+						static_cast<int>(unary.op_token().type())
+					)
+				};		
 		}
 	}
 

@@ -17,6 +17,8 @@ namespace lox
 	class error : public std::exception
 	{
 	public:
+		virtual ~error() noexcept {}
+
 		error() = default;
 		error(error const&) = default;
 		error(error&&) = default;
@@ -24,7 +26,7 @@ namespace lox
 		error& operator=(error const&) = default;
 		error& operator=(error&&) = default;
 
-		template<typename T>
+		template<class T>
 		explicit error(
 			T&& message,
 			const std::source_location location = std::source_location::current()
@@ -111,6 +113,9 @@ namespace lox
 		parse_error& operator=(parse_error&&) = default;
 
 		token_type type() const { return type_; }
+
+		std::unique_ptr<error> clone() const override
+		{ return std::make_unique<parse_error>(*this); }
 
 	private:
 		token_type type_;
