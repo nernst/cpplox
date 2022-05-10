@@ -258,7 +258,14 @@ namespace lox {
 			auto i = kws.find(id);
 			auto type = i == kws.end() ? token_type::IDENTIFIER : i->second;
 
-			add_token(type);
+			if (id == "true")
+				add_token(type, object{true});
+			else if (id == "false")
+				add_token(type, object{false});
+			else if (id == "nil")
+				add_token(type, object{});
+			else
+				add_token(type);
 		}
 
 		void scan_token()
@@ -342,7 +349,10 @@ namespace lox {
 		}
 
 		// force start_ to end_ so end of file lexeme is blank.
-		source_.add_line(start_);
+		if (start_)
+			source_.add_line(start_);
+
+		source_.add_line(end_);
 		start_ = end_;
 		add_token(token_type::END_OF_FILE);
 	}

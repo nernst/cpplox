@@ -37,6 +37,9 @@ namespace lox {
 		template<typename T, typename U>
 		void define(T&& name, U&& value)
 		{
+#ifdef LOX_ENV_TRACE
+			std::cerr << "env[" << this << "]::define(name: '" << name << "', value: [" << value.str() << "])" << std::endl;
+#endif
 			values_.insert_or_assign(
 				std::forward<T>(name),
 				std::forward<U>(value)
@@ -46,6 +49,9 @@ namespace lox {
 		template<typename U>
 		void assign(std::string const& name, U&& value)
 		{
+#ifdef LOX_ENV_TRACE
+			std::cerr << "env[" << this << "]::assign(name: '" << name << "', value: [" << value.str() << "])" << std::endl;
+#endif
 			auto i = values_.find(name);
 			if (i == end(values_))
 			{
@@ -68,11 +74,23 @@ namespace lox {
 			if (i == values_.end())
 			{
 				if (enclosing_ != nullptr)
-					return enclosing_->get(name);
+				{
+					auto obj{enclosing_->get(name)};
+#ifdef LOX_ENV_TRACE
+			std::cerr << "env[" << this << "]::assign(name: '" << name << "') ret=[" << obj.str() << "]" << std::endl;
+#endif
+					return obj;
+				}
 
+#ifdef LOX_ENV_TRACE
+			std::cerr << "env[" << this << "]::assign(name: '" << name << "') *undefined*" << std::endl;
+#endif
 				undefined(name);
 			}
 
+#ifdef LOX_ENV_TRACE
+			std::cerr << "env[" << this << "]::assign(name: '" << name << "') ret=[" << i->second.str() << "]" << std::endl;
+#endif
 			return i->second;
 		}
 
