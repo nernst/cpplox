@@ -192,4 +192,33 @@ test3)expected"s;
 	BOOST_REQUIRE_EQUAL(output, expected);
 }
 
+BOOST_AUTO_TEST_CASE(interpreter_while)
+{
+	auto test = R"test(
+var a = 5;
+
+while (a > 0)
+{
+	print a;
+	a = a - 1;
+}
+
+)test"s;
+
+	auto expected = R"expected(
+5
+4
+3
+2
+1
+)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("while", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(output, trim(expected));
+}
+
 
