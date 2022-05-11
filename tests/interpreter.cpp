@@ -105,12 +105,12 @@ global b
 global c
 )expected"s;
 
-	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("scope", test, false);
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("scope", test);
 
 	BOOST_TEST(!had_error);
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(!had_runtime_error);
-	BOOST_REQUIRE_EQUAL(output, expected);
+	BOOST_REQUIRE_EQUAL(output, trim(expected));
 }
 
 BOOST_AUTO_TEST_CASE(interpreter_if)
@@ -155,3 +155,41 @@ print a;
 	BOOST_TEST(!had_runtime_error);
 	BOOST_REQUIRE_EQUAL(output, expected);
 }
+
+BOOST_AUTO_TEST_CASE(interpreter_and)
+{
+	auto test = R"test(
+print "test1" and "test2";
+print nil and "test3";
+)test"s;
+
+	auto expected = R"expected(test2
+nil)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("logical-and", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(output, expected);
+}
+
+BOOST_AUTO_TEST_CASE(interpreter_or)
+{
+	auto test = R"test(
+print "test1" or "test2";
+print nil or "test3";
+)test"s;
+
+	auto expected = R"expected(test1
+test3)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("logical-and", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(output, expected);
+}
+
+

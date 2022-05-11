@@ -166,6 +166,30 @@ public:
 		}
 	}
 
+	void visit(logical const& logical) override
+	{
+		object left{evaluate(logical.left())};
+
+		if (logical.op_token().type() == token_type::OR)
+		{
+			if (static_cast<bool>(left))
+			{
+				result_ = left;
+				return;
+			}
+		}
+		else
+		{
+			if (!static_cast<bool>(left))
+			{
+				result_ = left;
+				return;
+			}
+		}
+
+		result_ = evaluate(logical.right());
+	}
+
 	void visit(grouping const& grouping) override
 	{
 		result_ = evaluate(grouping.expr());
