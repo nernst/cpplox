@@ -63,8 +63,8 @@ namespace lox {
 
 				undefined(name);
 			}
-
-			i->second = std::forward<U>(value);
+			else
+				i->second = std::forward<U>(value);
 		}
 
 		object get(std::string const& name) const
