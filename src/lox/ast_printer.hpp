@@ -22,6 +22,7 @@ namespace lox
 		void visit(binary const& expr) override;
 		void visit(grouping const& expr) override;
 		void visit(literal const& expr) override;
+		void visit(logical const& expr) override;
 		void visit(variable const& expr) override;
 		void visit(assign const& expr) override;
 
@@ -78,6 +79,11 @@ namespace lox
 	}
 
 	inline void ast_printer::visit(binary const& expr)
+	{
+		result_ = parenthesize(expr.op_token().lexeme(), print(expr.left()), print(expr.right()));
+	}
+
+	inline void ast_printer::visit(logical const& expr)
 	{
 		result_ = parenthesize(expr.op_token().lexeme(), print(expr.left()), print(expr.right()));
 	}

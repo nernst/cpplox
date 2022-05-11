@@ -12,6 +12,9 @@ namespace lox {
 	class token
 	{
 	public:
+
+		using enum token_type;
+
 		token() = default;
 	
 		token(token_type type, std::string_view	lexeme, object&& literal, location const& loc)

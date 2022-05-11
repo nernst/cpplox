@@ -14,8 +14,9 @@ class parser
 {
 public:
 
-	explicit parser(token_vec&& tokens)
+	explicit parser(token_vec&& tokens, std::ostream* error = &std::cerr)
 	: tokens_{std::move(tokens)}
+	, error_(error)
 	, current_{0}
 	, end_{tokens_.size()}
 	, had_error_{false}
@@ -46,6 +47,7 @@ public:
 
 private:
 	token_vec tokens_;
+	std::ostream* error_;
 	std::size_t current_;
 	std::size_t end_;
 	bool had_error_;
@@ -109,12 +111,12 @@ private:
 		auto const& loc = tok.source_location();
 		auto [line_no, line_off, line] = loc.get_line();
 
-		std::cerr << "in " << loc.where().name() << " (" << line_no << ':' << line_off << "): " << message << '\n';
-		std::cerr << fmt::format("{:>5} |", line_no) << line << '\n';
-		std::cerr << "      |";
+		*error_ << "in " << loc.where().name() << " (" << line_no << ':' << line_off << "): " << message << '\n';
+		*error_ << fmt::format("{:>5} |", line_no) << line << '\n';
+		*error_ << "      |";
 		for (size_t count = line_off; count; --count)
-			std::cerr << ' ';
-		std::cerr << "^\n";
+			*error_ << ' ';
+		*error_ << "^\n";
 
 		// log error
 		return parse_error{tok.type(), message};
@@ -173,7 +175,7 @@ private:
 
 	expression_ptr assignment()
 	{
-		auto expr{equality()};
+		auto expr{logical_or()};
 
 		if (match<token_type::EQUAL>())
 		{
@@ -185,6 +187,34 @@ private:
 				return make_expr<assign>(var->name_token(), std::move(value));
 
 			on_error(equals, "Invalid assignment target.");
+		}
+
+		return expr;
+	}
+
+	expression_ptr logical_or()
+	{
+		auto expr{logical_and()};
+
+		while (match<token_type::OR>())
+		{
+			token op{previous()};
+			auto right{logical_and()};
+			expr = make_expr<logical>(std::move(expr), std::move(op), std::move(right));
+		}
+
+		return expr;
+	}
+
+	expression_ptr logical_and()
+	{
+		auto expr{equality()};
+
+		while (match<token_type::AND>())
+		{
+			token op{previous()};
+			auto right{equality()};
+			expr = make_expr<logical>(std::move(expr), std::move(op), std::move(right));
 		}
 
 		return expr;

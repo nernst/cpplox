@@ -61,7 +61,9 @@ WARNINGS := -Wall -Wextra -Werror -Wpessimizing-move -Wredundant-move -Wold-styl
 
 # compiler/linker flags
 CXXFLAGS := -std=c++2a -Iinc $(WARNINGS) -MMD -MP $(INCDIRS) -fexceptions -fsanitize=undefined,address $(EXTRA_CXXFLAGS)
-DBGFLAGS := -g -O0 -D_GLIBCXX_ASSERTIONS -fno-omit-frame-pointer -DLOX_ENV_TRACE
+
+# NOTE: add -DLOX_ENV_TRACE to facility env debugging
+DBGFLAGS := -g -O0 -D_GLIBCXX_ASSERTIONS -fno-omit-frame-pointer
 RELFLAGS := -O3
 TESTFLAGS := $(DBGFLAGS) -I$(SOURCE_DIR)
 LDFLAGS := $(addprefix -l,$(LIBS)) $(addprefix -L,$(LIBDIRS))

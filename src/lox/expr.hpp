@@ -11,12 +11,13 @@
 namespace lox {
 
 	class expression;
-	class unary;
+	class assign;
 	class binary;
 	class grouping;
 	class literal;
+	class logical;
+	class unary;
 	class variable;
-	class assign;
 	
 	using expression_ptr = std::unique_ptr<expression>;
 
@@ -26,6 +27,7 @@ namespace lox {
 		BINARY,
 		GROUPING,
 		LITERAL,
+		LOGICAL,
 		VARIABLE,
 		ASSIGN
 	};
@@ -41,12 +43,13 @@ namespace lox {
 		public:
 			virtual ~visitor() {}
 
-			virtual void visit(unary const& expr) = 0;
+			virtual void visit(assign const& expr) = 0;
 			virtual void visit(binary const& expr) = 0;
 			virtual void visit(grouping const& expr) = 0;
 			virtual void visit(literal const& expr) = 0;
+			virtual void visit(logical const& expr) = 0;
+			virtual void visit(unary const& expr) = 0;
 			virtual void visit(variable const& expr) = 0;
-			virtual void visit(assign const& expr) = 0;
 		};
 
 	public:
@@ -202,6 +205,37 @@ namespace lox {
 
 	private:
 		object value_;
+	};
+
+	class logical : public expression
+	{
+	public:
+		explicit logical(expression_ptr&& left, token&& op_token, expression_ptr&& right)
+		: left_{std::move(left)}
+		, right_{std::move(right)}
+		, op_token_{std::move(op_token)}
+		{
+			assert(left_);
+			assert(right_);
+		}
+
+		logical(logical const&) = delete;
+		logical(logical&&) = default;
+
+		logical& operator=(logical const&) = delete;
+		logical& operator=(logical&&) = default;
+
+		expression_type type() const override { return LOGICAL; }
+		void accept(visitor& v) const override { v.visit(*this); }
+
+		expression const& left() const { return *left_; }
+		token const& op_token() const { return op_token_; }
+		expression const& right() const { return *right_; }
+
+	private:
+		expression_ptr left_;
+		expression_ptr right_;
+		token op_token_;
 	};
 
 	
