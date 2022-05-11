@@ -80,11 +80,13 @@ BOOST_AUTO_TEST_CASE(str_conv)
 	object t{true};
 	object f{false};
 	object nil{};
+	object five{5};
 	
 	BOOST_TEST(str.str() == "asdf");
-	BOOST_TEST(num.str() == "123.456000");
+	BOOST_TEST(num.str() == "123.456");
 	BOOST_TEST(t.str() == "true");
 	BOOST_TEST(f.str() == "false");
+	BOOST_TEST(five.str() == "5");
 }
 
 BOOST_AUTO_TEST_CASE(bool_conv)

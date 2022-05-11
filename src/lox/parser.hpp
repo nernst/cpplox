@@ -344,6 +344,9 @@ private:
 		if (match<token_type::PRINT>())
 			return print_statement();
 
+		if (match<token_type::WHILE>())
+			return while_statement();
+
 		if (match<token_type::LEFT_BRACE>())
 			return make_stmt<block_stmt>(block());
 
@@ -372,6 +375,16 @@ private:
 		consume(token_type::SEMICOLON, "Expect ';' after value.");
 
 		return make_stmt<print_stmt>(std::move(value));
+	}
+
+	statement_ptr while_statement()
+	{
+		consume(token_type::LEFT_PAREN, "Expect '(' after 'while'.");
+		auto condition{expr()};
+		consume(token_type::RIGHT_PAREN, "Expect ')' after condition.");
+
+		auto body{statement()};
+		return make_stmt<while_stmt>(std::move(condition), std::move(body));
 	}
 
 	statement_ptr expression_statement()

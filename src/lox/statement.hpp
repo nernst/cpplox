@@ -17,6 +17,7 @@ namespace lox {
 	class var_stmt;
 	class block_stmt;
 	class if_stmt;
+	class while_stmt;
 
 	class statement
 	{
@@ -31,6 +32,7 @@ namespace lox {
 			virtual void visit(var_stmt const& stmt) = 0;
 			virtual void visit(block_stmt const& stmt) = 0;
 			virtual void visit(if_stmt const& smt) = 0;
+			virtual void visit(while_stmt const& stmt) = 0;
 		};
 
 	public:
@@ -141,6 +143,28 @@ namespace lox {
 		expression_ptr condition_;
 		statement_ptr then_branch_;
 		statement_ptr else_branch_;
+	};
+
+	
+	class while_stmt : public statement
+	{
+	public:
+		explicit while_stmt(expression_ptr&& condition, statement_ptr&& body)
+		: condition_{std::move(condition)}
+		, body_{std::move(body)}
+		{
+			assert(condition_);
+			assert(body_);
+		}
+
+		expression const& condition() const { return *condition_; }
+		statement const& body() const { return *body_; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		expression_ptr condition_;
+		statement_ptr body_;
 	};
 
 } // namespace lox

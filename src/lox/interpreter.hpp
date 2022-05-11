@@ -85,6 +85,12 @@ public:
 			execute(*else_branch);
 	}
 
+	void visit(while_stmt const& stmt) override
+	{
+		while (static_cast<bool>(evaluate(stmt.condition())))
+			execute(stmt.body());
+	}
+
 
 	// expressions
 	object const& result() const { return result_; }

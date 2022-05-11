@@ -101,7 +101,29 @@ namespace lox
 				if constexpr (std::is_same_v<T, std::string>)
 					return arg;
 				else if constexpr (std::is_same_v<T, double>)
-					return std::to_string(arg);
+				{
+					auto s{std::to_string(arg)};
+					assert(!s.empty());
+
+					// trim trailing zeros in the decimal
+					// if there's nothing left, also remove the decimal
+					// e.g. "5.000000" should become "5",
+					// "5.010000" should become "5.01"
+					auto pos{s.find('.')};
+					if (pos != std::string::npos)
+					{
+						auto i{s.size()};
+						size_t count{0};
+						while (i > pos && (s[i - 1] == '0' || s[i - 1] == '.'))
+						{
+							--i;
+							++count;
+						}
+
+						s.erase(i, count);
+					}
+					return s;
+				}
 				else if constexpr (std::is_same_v<T, bool>)
 					return arg ? "true" : "false";
 				else if constexpr (std::is_same_v<T, nullptr_t>)
