@@ -51,7 +51,6 @@ a = 2;
 	BOOST_TEST(!had_runtime_error);
 }
 
-#if 0
 BOOST_AUTO_TEST_CASE(interpreter_assign_undefined)
 {
 	auto test = R"test(
@@ -64,7 +63,6 @@ b = 2;
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(had_runtime_error);
 }
-#endif
 
 BOOST_AUTO_TEST_CASE(interpreter_scope)
 {
@@ -218,6 +216,53 @@ while (a > 0)
 	BOOST_TEST(!had_error);
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(output, trim(expected));
+}
+
+
+BOOST_AUTO_TEST_CASE(interpreter_for)
+{
+	auto test = R"test(
+var a = 0;
+var temp;
+
+for (var b = 1; a < 10000; b = temp + b) {
+	print a;
+	temp = a;
+	a = b;
+}
+)test"s;
+
+	auto expected = R"expected(
+0
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+89
+144
+233
+377
+610
+987
+1597
+2584
+4181
+6765
+)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("for", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
 	BOOST_REQUIRE_EQUAL(output, trim(expected));
 }
 

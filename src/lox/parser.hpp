@@ -293,8 +293,7 @@ private:
 		if (match<token_type::FALSE_L, token_type::TRUE_L, token_type::NIL, token_type::NUMBER, token_type::STRING>())
 			return make_expr<literal>(previous().literal());
 
-		if (match<token_type::IDENTIFIER>())
-			return make_expr<variable>(previous());
+		if (match<token_type::IDENTIFIER>()) return make_expr<variable>(previous());
 		
 		if (match<token_type::LEFT_PAREN>())
 		{
@@ -338,6 +337,9 @@ private:
 
 	statement_ptr statement()
 	{
+		if (match<token_type::FOR>())
+			return for_statement();
+
 		if (match<token_type::IF>())
 			return if_statement();
 
@@ -351,6 +353,63 @@ private:
 			return make_stmt<block_stmt>(block());
 
 		return expression_statement();
+	}
+
+	statement_ptr for_statement()
+	{
+		consume(token_type::LEFT_PAREN, "Expect '(' after 'for'.");
+
+		statement_ptr initializer;
+
+		if (match<token_type::SEMICOLON>())
+		{
+			// no-op - initializer remains null.
+		}
+		else if (match<token_type::VAR>())
+		{
+			initializer = var_declaration();
+		}
+		else
+		{
+			initializer = expression_statement();
+		}
+
+		expression_ptr condition;
+
+		if (!check(token_type::SEMICOLON))
+			condition = expr();
+		else
+			condition = make_expr<literal>(true);
+
+		consume(token_type::SEMICOLON, "Expect ';' after for-loop condition.");
+
+		expression_ptr increment;
+		if (!check(token_type::RIGHT_PAREN))
+			increment = expr();
+
+		consume(token_type::RIGHT_PAREN, "Expect ')' after for clauses.");
+
+		auto body{statement()};
+
+		if (increment)
+		{
+			statement_vec statements;
+			statements.push_back(std::move(body));
+			statements.push_back(make_stmt<expression_stmt>(std::move(increment)));
+			body = make_stmt<block_stmt>(std::move(statements));
+		}
+
+		body = make_stmt<while_stmt>(std::move(condition), std::move(body)); 
+
+		if (initializer)
+		{
+			statement_vec statements;
+			statements.push_back(std::move(initializer));
+			statements.push_back(std::move(body));
+			body = make_stmt<block_stmt>(std::move(statements));
+		}
+
+		return body;
 	}
 
 	statement_ptr if_statement()

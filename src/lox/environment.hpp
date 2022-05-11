@@ -77,13 +77,13 @@ namespace lox {
 				{
 					auto obj{enclosing_->get(name)};
 #ifdef LOX_ENV_TRACE
-			std::cerr << "env[" << this << "]::assign(name: '" << name << "') ret=[" << obj.str() << "]" << std::endl;
+			std::cerr << "env[" << this << "]::get(name: '" << name << "') ret=[" << obj.str() << "]" << std::endl;
 #endif
 					return obj;
 				}
 
 #ifdef LOX_ENV_TRACE
-			std::cerr << "env[" << this << "]::assign(name: '" << name << "') *undefined*" << std::endl;
+			std::cerr << "env[" << this << "]::get(name: '" << name << "') *undefined*" << std::endl;
 #endif
 				undefined(name);
 			}
