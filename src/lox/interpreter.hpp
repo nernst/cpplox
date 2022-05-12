@@ -190,8 +190,19 @@ public:
 			std::views::transform(call.arguments(), [this](auto const& exp) { return evaluate(*exp); }),
 			std::back_inserter(args)
 		);
-	
-		callable func{callee.get<callable>()};
+
+		callable func;
+
+		try
+		{
+			func = callee.get<callable>();
+		}
+		catch(type_error const&)
+		{
+			throw type_error{"Only functions and classes are callable."};
+		}
+
+		assert(func.valid());
 
 		if (nargs != func.arity())
 			throw runtime_error{
