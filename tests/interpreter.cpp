@@ -267,3 +267,23 @@ for (var b = 1; a < 10000; b = temp + b) {
 }
 
 
+BOOST_AUTO_TEST_CASE(interpreter_call_not_callable)
+{
+	auto test = R"test(
+var a = 0;
+a();
+)test"s;
+
+	auto expected = R"expected(
+)expected"s;
+
+	try
+	{
+		(void)run_test_case_output("call-not-callable", test);
+	}
+	catch(type_error const& e)
+	{
+		BOOST_REQUIRE_EQUAL(e.what(), "Only functions and classes are callable.");
+	}
+}
+

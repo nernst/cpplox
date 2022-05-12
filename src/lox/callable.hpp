@@ -34,7 +34,7 @@ namespace lox
 			assert(impl_);
 		}
 
-		callable() = delete;
+		callable() = default;
 		callable(callable const&) = default;
 		callable(callable&& other)
 		: impl_{other.impl_}
@@ -50,6 +50,8 @@ namespace lox
 			}
 			return *this;
 		}
+
+		bool valid() const { return static_cast<bool>(impl_); }
 
 		std::string name() const { return impl_->name(); }
 		size_t arity() const { return impl_->arity(); }
