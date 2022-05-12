@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <ranges>
 
 #include "environment.hpp"
 #include "exceptions.hpp"
@@ -170,6 +171,28 @@ public:
 			default:
 				LOX_THROW(programming_error, fmt::format("unhandled binary operator: '{}'", binary.op_token().lexeme()));
 		}
+	}
+
+	void visit(call const& call) override
+	{
+		const auto nargs{call.arguments().size()};
+		auto callee{evaluate(call.callee())};
+		std::vector<object> args;
+		args.reserve(nargs);
+
+		std::ranges::copy(
+			std::views::transform(call.arguments(), [this](auto const& exp) { return evaluate(*exp); }),
+			std::back_inserter(args)
+		);
+	
+		callable func{callee.get<callable>()};
+
+		if (nargs != func.arity())
+			throw runtime_error{
+				fmt::format("Exepcted {} arguments but got {}.", func.arity(), nargs)
+			};
+			
+		result_ = func(*this, args);
 	}
 
 	void visit(logical const& logical) override

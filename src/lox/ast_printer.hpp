@@ -20,6 +20,7 @@ namespace lox
 
 		void visit(unary const& expr) override;
 		void visit(binary const& expr) override;
+		void visit(call const& expr) override;
 		void visit(grouping const& expr) override;
 		void visit(literal const& expr) override;
 		void visit(logical const& expr) override;
@@ -29,6 +30,7 @@ namespace lox
 		std::string const& result() const { return result_; }
 
 		static std::string print(expression const& expr);
+		static std::string print(std::vector<expression_ptr> const& args);
 
 	private:
 		std::string result_;
@@ -106,6 +108,12 @@ namespace lox
 	inline void ast_printer::visit(assign const& expr)
 	{
 		result_ = parenthesize("=", expr.name(), print(expr.value()));
+	}
+
+	inline void ast_printer::visit(call const& expr)
+	{
+		// TODO, expand arguments...
+		result_ = parenthesize("call", print(expr.callee()), parenthesize("args", expr.arguments().size()));
 	}
 
 
