@@ -13,6 +13,7 @@ namespace lox {
 	class expression;
 	class assign;
 	class binary;
+	class call;
 	class grouping;
 	class literal;
 	class logical;
@@ -25,6 +26,7 @@ namespace lox {
 	{
 		UNARY,
 		BINARY,
+		CALL,
 		GROUPING,
 		LITERAL,
 		LOGICAL,
@@ -45,6 +47,7 @@ namespace lox {
 
 			virtual void visit(assign const& expr) = 0;
 			virtual void visit(binary const& expr) = 0;
+			virtual void visit(call const& expr) = 0;
 			virtual void visit(grouping const& expr) = 0;
 			virtual void visit(literal const& expr) = 0;
 			virtual void visit(logical const& expr) = 0;
@@ -130,6 +133,33 @@ namespace lox {
 		expression_ptr left_;
 		token op_token_;
 		expression_ptr right_;
+	};
+
+	class call : public expression
+	{
+	public:
+		using argument_vec = std::vector<expression_ptr>;
+		
+		call(expression_ptr&& callee, token&& paren, argument_vec&& arguments)
+		: callee_{std::move(callee)}
+		, paren_{std::move(paren)}
+		, arguments_{std::move(arguments)}
+		{
+			assert(callee_);
+		}
+
+		expression_type type() const override { return CALL; }
+
+		expression const& callee() const { return *callee_; };
+		token const& paren() const { return paren_; }
+		argument_vec const& arguments() const { return arguments_; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		expression_ptr callee_;
+		token paren_;
+		argument_vec arguments_;
 	};
 
 	class grouping : public expression

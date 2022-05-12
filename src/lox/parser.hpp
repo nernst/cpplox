@@ -285,7 +285,43 @@ private:
 			return make_expr<::lox::unary>(std::move(op), std::move(right));
 		}
 
-		return primary();
+		return call();
+	}
+
+	expression_ptr call()
+	{
+		auto e{primary()};
+		
+		while (true)
+		{
+			if (match<token_type::LEFT_PAREN>())
+				e = finish_call(std::move(e));
+			else
+				break;
+		}
+
+		return e;
+	}
+
+	expression_ptr finish_call(expression_ptr&& callee)
+	{
+		std::vector<expression_ptr> args;
+
+		if (!check(token_type::RIGHT_PAREN))
+		{
+			do
+			{
+				if (args.size() >= 255)
+					on_error(peek(), "Cannot have more than 255 arguments.");
+
+				args.push_back(expr());
+			}
+			while (match<token_type::COMMA>());
+		}
+
+		auto paren = consume(token_type::RIGHT_PAREN, "Expect ')' after arguments.");
+
+		return make_expr<::lox::call>(std::move(callee), std::move(paren), std::move(args));
 	}
 
 	expression_ptr primary()

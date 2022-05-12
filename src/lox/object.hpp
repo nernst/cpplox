@@ -7,6 +7,7 @@
 #include <variant>
 #include <fmt/format.h>
 
+#include "callable.hpp"
 #include "exceptions.hpp"
 #include "utility.hpp"
 
@@ -41,17 +42,19 @@ namespace lox
 
 		enum class type
 		{
-			STRING,
-			DOUBLE,
+			NIL,
 			BOOL,
-			NIL
+			DOUBLE,
+			STRING,
+			CALLABLE
 		};
 
 		using holder_t = std::variant<
-			std::string,
-			double,
+			nullptr_t,
 			bool,
-			nullptr_t
+			double,
+			std::string,
+			callable
 		>;
 
 		object()
@@ -128,6 +131,8 @@ namespace lox
 					return arg ? "true" : "false";
 				else if constexpr (std::is_same_v<T, nullptr_t>)
 					return "nil";
+				else if constexpr (std::is_same_v<T, callable>)
+					return arg.str();
 				else 
 					static_assert(always_false_v<T>, "str: invalid visitor");
 			};
@@ -184,6 +189,8 @@ namespace lox
 					return arg == std::get<bool>(other.value_);
 				else if constexpr (std::is_same_v<T, nullptr_t>)
 					return true;
+				else if constexpr (std::is_same_v<T, callable>)
+					return &arg.cimpl() == &std::get<callable>(other.value_).cimpl();
 				else
 					static_assert(always_false_v<T>, "operator==: invalid visitor");
 			};
