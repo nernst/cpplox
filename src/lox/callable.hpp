@@ -36,10 +36,20 @@ namespace lox
 
 		callable() = delete;
 		callable(callable const&) = default;
-		callable(callable&&) = default;
+		callable(callable&& other)
+		: impl_{other.impl_}
+		{ }
 
 		callable& operator=(callable const&) = default;
-		callable& operator=(callable&&) = default;
+		callable& operator=(callable&& other)
+		{
+			// we don't really move, just share the impl.
+			if (this != &other)
+			{
+				impl_ = other.impl_;
+			}
+			return *this;
+		}
 
 		std::string name() const { return impl_->name(); }
 		size_t arity() const { return impl_->arity(); }

@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <ranges>
 #include <unordered_map>
 #include <fmt/format.h>
 
@@ -13,7 +14,7 @@ namespace lox {
 	class environment;
 	using environment_ptr = std::shared_ptr<environment>;
 
-	class environment
+	class environment : std::enable_shared_from_this<environment>
 	{
 		using value_map = std::unordered_map<std::string, object>;
 
@@ -33,6 +34,8 @@ namespace lox {
 
 		environment& operator=(environment const&) = delete;
 		environment& operator=(environment&&) = default;
+
+		environment_ptr const& enclosing() const { return enclosing_; }
 
 		template<typename T, typename U>
 		void define(T&& name, U&& value)
@@ -92,6 +95,16 @@ namespace lox {
 			std::cerr << "env[" << this << "]::assign(name: '" << name << "') ret=[" << i->second.str() << "]" << std::endl;
 #endif
 			return i->second;
+		}
+
+		std::vector<std::string> names() const
+		{
+			std::vector<std::string> names;
+			std::ranges::copy(
+				std::views::transform(values_, [](auto&& p) { return p.first; }),
+				std::back_inserter(names)
+			);
+			return names;
 		}
 
 	private:
@@ -186,5 +199,6 @@ namespace lox {
 		stack_ = nullptr;
 		env_.reset();
 	}
+
 
 } // namespace lox

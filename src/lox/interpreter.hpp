@@ -8,6 +8,7 @@
 #include "expr.hpp"
 #include "statement.hpp"
 #include "utility.hpp"
+#include "callable.hpp"
 
 namespace lox {
 
@@ -36,6 +37,11 @@ public:
 		assert(stdin_);
 		assert(stdout_);
 		assert(stderr_);
+
+		for (auto&& callable : callable::builtins())
+		{
+			global_env().define(callable.name(), object{std::move(callable)});
+		}
 	}
 
 	environment& global_env() { return stack_.global(); }
