@@ -9,6 +9,7 @@ namespace lox
 {
 	class interpreter;
 	class object;
+	class func_stmt;
 
 	class callable
 	{
@@ -18,7 +19,7 @@ namespace lox
 		{
 			virtual ~impl() = default;
 			virtual size_t arity() const = 0;
-			virtual object call(interpreter& inter, std::vector<object> const& arguments) = 0;
+			virtual object call(interpreter& inter, std::vector<object> const& arguments) const = 0;
 			virtual std::string name() const = 0;
 			virtual std::string str() const = 0;
 		};
@@ -28,7 +29,7 @@ namespace lox
 			std::string str() const override final { return fmt::format("<builtin fn {} at {}>", name(), reinterpret_cast<const void*>(this)); }
 		};
 
-		explicit callable(std::shared_ptr<impl>&& cimpl)
+		explicit callable(std::shared_ptr<const impl>&& cimpl)
 		: impl_{std::move(cimpl)}
 		{
 			assert(impl_);
@@ -58,7 +59,7 @@ namespace lox
 		object operator()(interpreter& inter, std::vector<object> const& arguments) const;
 		std::string str() const { return impl_->str(); }
 
-		impl& cimpl() const { return *impl_; }
+		impl const& cimpl() const { return *impl_; }
 
 
 		template<class Impl>
@@ -67,10 +68,12 @@ namespace lox
 			return callable{std::make_shared<Impl>()};
 		}
 
+		static callable make_lox_function(func_stmt const& declaration);
+
 		static std::vector<callable> builtins();
 
 	private:
-		std::shared_ptr<impl> impl_;
+		std::shared_ptr<const impl> impl_;
 	};
 
 } // namespace lox

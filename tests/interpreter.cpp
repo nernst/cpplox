@@ -287,3 +287,53 @@ a();
 	}
 }
 
+BOOST_AUTO_TEST_CASE(interpreter_simple_func)
+{
+	auto test = R"test(
+fun count(n) {
+	if (n > 1) count(n - 1);
+	print n;
+}
+
+count(3);
+)test"s;
+
+	auto expected = R"expected(
+1
+2
+3
+)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("simple-func", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
+	BOOST_REQUIRE_EQUAL(output, trim(expected));
+}
+
+BOOST_AUTO_TEST_CASE(interpreter_func_str)
+{
+	auto test = R"test(
+fun add(a, b) {
+	print a + b;
+}
+
+print add;
+)test"s;
+
+	auto expected = R"expected(
+<fn add>
+)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("func-str", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
+	BOOST_REQUIRE_EQUAL(output, trim(expected));
+}
+
+
