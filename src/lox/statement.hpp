@@ -17,6 +17,7 @@ namespace lox {
 	class func_stmt;
 	class if_stmt;
 	class print_stmt;
+	class return_stmt;
 	class var_stmt;
 	class while_stmt;
 
@@ -55,55 +56,6 @@ namespace lox {
 	};
 
 
-	class expression_stmt : public statement
-	{
-	public:
-		explicit expression_stmt(expression_ptr&& expr)
-		: expr_{std::move(expr)}
-		{ }
-
-		expression const& expr() const { return *expr_; }
-
-		void accept(visitor& v) const override { v.visit(*this); }
-
-	private:
-		expression_ptr expr_;
-	};
-
-
-	class print_stmt : public statement
-	{
-	public:
-		explicit print_stmt(expression_ptr&& expr)
-		: expr_{std::move(expr)}
-		{ }
-
-		expression const& expr() const { return *expr_; }
-
-		void accept(visitor& v) const override { v.visit(*this); }
-
-	private:
-		expression_ptr expr_;
-	};
-
-	class var_stmt : public statement
-	{
-	public:
-		explicit var_stmt(token&& name, expression_ptr&& initializer)
-		: name_{std::move(name)}
-		, initializer_{std::move(initializer)}
-		{ }
-
-		token const& name() const { return name_; }
-		expression_ptr const& initializer() const { return initializer_; }
-
-		void accept(visitor& v) const override { v.visit(*this); }
-
-	private:
-		token name_;
-		expression_ptr initializer_;
-	};
-
 	class block_stmt : public statement
 	{
 	public:
@@ -120,6 +72,23 @@ namespace lox {
 	private:
 		statements_t statements_;
 	};
+
+
+	class expression_stmt : public statement
+	{
+	public:
+		explicit expression_stmt(expression_ptr&& expr)
+		: expr_{std::move(expr)}
+		{ }
+
+		expression const& expr() const { return *expr_; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		expression_ptr expr_;
+	};
+
 
 	class func_stmt : public statement
 	{
@@ -170,6 +139,7 @@ namespace lox {
 		std::shared_ptr<impl> impl_;
 	};
 
+
 	class if_stmt : public statement
 	{
 	public:
@@ -196,6 +166,39 @@ namespace lox {
 		statement_ptr else_branch_;
 	};
 
+
+	class print_stmt : public statement
+	{
+	public:
+		explicit print_stmt(expression_ptr&& expr)
+		: expr_{std::move(expr)}
+		{ }
+
+		expression const& expr() const { return *expr_; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		expression_ptr expr_;
+	};
+
+	class var_stmt : public statement
+	{
+	public:
+		explicit var_stmt(token&& name, expression_ptr&& initializer)
+		: name_{std::move(name)}
+		, initializer_{std::move(initializer)}
+		{ }
+
+		token const& name() const { return name_; }
+		expression_ptr const& initializer() const { return initializer_; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		token name_;
+		expression_ptr initializer_;
+	};
 	
 	class while_stmt : public statement
 	{
