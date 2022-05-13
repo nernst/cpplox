@@ -57,6 +57,10 @@ namespace lox
 	public:
 		using error::error;
 
+		explicit not_implemented(const std::source_location location = std::source_location::current())
+		: error("not implemented", location)
+		{ }
+
 		std::unique_ptr<error> clone() const override
 		{ return std::make_unique<not_implemented>(*this); }
 	};

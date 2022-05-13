@@ -12,6 +12,12 @@ using token_vec = std::vector<token>;
 
 class parser
 {
+	static constexpr const std::size_t MAX_ARGS = 255;
+	enum class function_kind
+	{
+		function
+	};
+
 public:
 
 	explicit parser(token_vec&& tokens, std::ostream* error = &std::cerr)
@@ -311,8 +317,8 @@ private:
 		{
 			do
 			{
-				if (args.size() >= 255)
-					on_error(peek(), "Cannot have more than 255 arguments.");
+				if (args.size() >= MAX_ARGS)
+					on_error(peek(), fmt::format("Cannot have more than {} arguments.", MAX_ARGS));
 
 				args.push_back(expr());
 			}
@@ -347,6 +353,9 @@ private:
 	{
 		try
 		{
+			if (match<token_type::FUN>())
+				return function(function_kind::function);
+
 			if (match<token_type::VAR>())
 				return var_declaration();
 
@@ -357,6 +366,50 @@ private:
 			synchronize();
 			return nullptr;
 		}
+	}
+
+	statement_ptr function(function_kind kind)
+	{
+		struct messages
+		{
+			std::string_view ident;
+			std::string_view paren;
+			std::string_view brace;
+		};
+		static const constexpr std::array<messages, 1> messages{{
+			{
+				"Expect function name.",
+				"Expect '(' after function name.",
+				"Expect '{' before function body."
+			}
+		}};
+		const size_t msg_index{static_cast<std::size_t>(kind)};
+		assert(msg_index < messages.size());
+		auto const& msg = messages[msg_index];
+
+		token name{consume(token_type::IDENTIFIER, msg.ident)};
+
+		consume(token_type::LEFT_PAREN, msg.paren);
+
+		std::vector<token> parameters;
+		if (!check(token_type::RIGHT_PAREN))
+		{
+			do
+			{
+				if (parameters.size() >= MAX_ARGS)
+					on_error(peek(), fmt::format("Cannot have more than {} parameters.", MAX_ARGS));
+
+				parameters.push_back(consume(token_type::IDENTIFIER, "Expect parameter name"));
+			}
+			while (match<token_type::COMMA>());
+		}
+
+		consume(token_type::RIGHT_PAREN, "Expect ')' after parameters."); 
+		consume(token_type::LEFT_BRACE, msg.brace);
+
+		auto body{block()};
+
+		return make_stmt<func_stmt>(std::move(name), std::move(parameters), std::move(body));
 	}
 
 	statement_ptr var_declaration()

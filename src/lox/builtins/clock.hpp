@@ -11,7 +11,7 @@ namespace lox::builtin
 	{
 		std::size_t arity() const override { return 0; }
 
-		object call(interpreter& inter, std::vector<object> const& args) override;
+		object call(interpreter& inter, std::vector<object> const& args) const override;
 
 		std::string name() const override { return "clock"; }
 	};

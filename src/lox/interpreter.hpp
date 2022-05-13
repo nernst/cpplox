@@ -23,7 +23,6 @@ class interpreter
 public:
 
 	using statement_vec = std::vector<statement_ptr>;
-	using environment_stack = std::vector<environment>;
 
 	interpreter(
 		std::istream* stdin,
@@ -44,12 +43,19 @@ public:
 		}
 	}
 
+	scope_stack& stack() { return stack_; }
 	environment& global_env() { return stack_.global(); }
 	environment& current_env() { return stack_.current(); }
 
 	void interpret(statement_vec const& statements)
 	{
 		execute_block(statements);
+	}
+
+	void execute_block(block_stmt::statements_t const& statements)
+	{
+		for (auto&& stmt : statements)
+			execute(*stmt);
 	}
 
 
@@ -96,6 +102,13 @@ public:
 	{
 		while (static_cast<bool>(evaluate(stmt.condition())))
 			execute(stmt.body());
+	}
+
+	void visit(func_stmt const& stmt) override
+	{
+		ignore_unused(stmt);
+		auto func{callable::make_lox_function(stmt)};
+		current_env().define(std::string{stmt.name().lexeme()}, object{func});
 	}
 
 
@@ -271,12 +284,6 @@ private:
 	void execute(statement const& stmt)
 	{
 		stmt.accept(*this);
-	}
-
-	void execute_block(block_stmt::statements_t const& statements)
-	{
-		for (auto&& stmt : statements)
-			execute(*stmt);
 	}
 };
 
