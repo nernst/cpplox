@@ -34,6 +34,7 @@ namespace lox {
 			virtual void visit(func_stmt const& stmt) = 0;
 			virtual void visit(if_stmt const& smt) = 0;
 			virtual void visit(print_stmt const& stmt) = 0;
+			virtual void visit(return_stmt const& stmt) = 0;
 			virtual void visit(var_stmt const& stmt) = 0;
 			virtual void visit(while_stmt const& stmt) = 0;
 		};
@@ -180,6 +181,25 @@ namespace lox {
 
 	private:
 		expression_ptr expr_;
+	};
+
+	class return_stmt : public statement
+	{
+	public:
+		explicit return_stmt(token&& keyword, expression_ptr&& value)
+		: keyword_{std::move(keyword)}
+		, value_{std::move(value)}
+		{ }
+
+		token const& keyword() const { return keyword_; }
+		std::optional<std::reference_wrapper<const expression>> value() const
+		{ return value_ ? std::make_optional(std::cref(*value_)) : std::nullopt; }
+
+		void accept(visitor& v) const override { v.visit(*this); }
+
+	private:
+		token keyword_;
+		expression_ptr value_;
 	};
 
 	class var_stmt : public statement

@@ -204,7 +204,30 @@ namespace lox
 		bool operator>(object const& other) const { return numeric_op(other, ">", std::greater{}); }
 		bool operator>=(object const& other) const { return numeric_op(other, ">=", std::greater_equal{}); }
 
-		object operator+(object const& other) const { return object{numeric_op(other, "+", std::plus{})}; }
+		object operator+(object const& other) const
+		{
+			if (get_type() != other.get_type())
+				goto on_type_error;
+
+			switch (get_type())
+			{
+				case type::STRING:
+				case type::DOUBLE:
+					return object{std::plus<>{}(static_cast<double>(*this), static_cast<double>(other))};
+
+				default:
+					break;
+			}
+
+		on_type_error:
+			throw type_error{
+				fmt::format(
+					"unsupported operand type(s) for '+': '{}' and '{}'", 
+					get_type_str(), 
+					other.get_type_str()
+				)
+			};
+		}
 		object operator-(object const& other) const { return object{numeric_op(other, "-", std::minus{})}; }
 		object operator/(object const& other) const { return object{numeric_op(other, "/", std::divides{})}; }
 		object operator*(object const& other) const { return object{numeric_op(other, "*", std::multiplies{})}; }

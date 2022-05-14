@@ -22,6 +22,11 @@ class interpreter
 
 public:
 
+	struct return_value
+	{
+		object value_;
+	};
+
 	using statement_vec = std::vector<statement_ptr>;
 
 	interpreter(
@@ -109,6 +114,18 @@ public:
 		ignore_unused(stmt);
 		auto func{callable::make_lox_function(stmt)};
 		current_env().define(std::string{stmt.name().lexeme()}, object{func});
+	}
+
+	[[noreturn]]
+	void visit(return_stmt const& stmt) override
+	{
+		object value;
+
+		auto expr{stmt.value()};
+		if (expr)
+			value = evaluate(*expr);
+
+		throw return_value{std::move(value)};
 	}
 
 
