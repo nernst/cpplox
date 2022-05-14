@@ -127,9 +127,15 @@ namespace lox
 			}
 #endif
 
-			inter.execute_block(declaration().body());
+			try
+			{
+				inter.execute_block(declaration().body());
+			}
+			catch(interpreter::return_value const& rv)
+			{
+				return rv.value_;
+			}
 
-			// TODO: return value not implemented
 			return {};
 		}
 

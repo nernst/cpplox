@@ -435,6 +435,9 @@ private:
 		if (match<token_type::PRINT>())
 			return print_statement();
 
+		if (match<token_type::RETURN>())
+			return return_statement();
+
 		if (match<token_type::WHILE>())
 			return while_statement();
 
@@ -523,6 +526,18 @@ private:
 		consume(token_type::SEMICOLON, "Expect ';' after value.");
 
 		return make_stmt<print_stmt>(std::move(value));
+	}
+
+	statement_ptr return_statement()
+	{
+		token keyword{previous()};
+		expression_ptr value;
+
+		if (!check(token_type::SEMICOLON))
+			value = expr();
+
+		consume(token_type::SEMICOLON, "Expect ';' after return value.");
+		return make_stmt<return_stmt>(std::move(keyword), std::move(value));
 	}
 
 	statement_ptr while_statement()

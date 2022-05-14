@@ -336,4 +336,48 @@ print add;
 	BOOST_REQUIRE_EQUAL(output, trim(expected));
 }
 
+BOOST_AUTO_TEST_CASE(interpreter_func_return)
+{
+	auto test = R"test(
+fun fib(n) {
+	if (n <= 1) return n;
+	return fib(n - 2) + fib(n - 1);
+}
+
+for (var i = 0; i < 20; i = i + 1) {
+	print fib(i);
+}
+)test"s;
+
+	auto expected = R"expected(
+0
+1
+1
+2
+3
+5
+8
+13
+21
+34
+55
+89
+144
+233
+377
+610
+987
+1597
+2584
+4181
+)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("func-return", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
+	BOOST_REQUIRE_EQUAL(output, trim(expected));
+}
 
