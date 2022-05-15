@@ -86,11 +86,15 @@ namespace lox
 	class lox_function_impl : public callable::impl
 	{
 	public:
-		explicit lox_function_impl(func_stmt const& declaration)
+		explicit lox_function_impl(func_stmt const& declaration, environment_ptr&& closure)
 		: declaration_{declaration}
-		{ }
+		, closure_{closure}
+		{
+			assert(closure_);
+		}
 
 		func_stmt const& declaration() const { return declaration_; }
+		environment_ptr const& closure() const { return closure_; }
 
 		size_t arity() const override
 		{
@@ -103,7 +107,9 @@ namespace lox
 			assert(arguments.size() == arity());
 
 			// push new environment
-			scope s{&inter.stack()};
+			// NOTE: this causes a cyclic reference & a memory leak.
+			// TODO: fix the leak
+			scope s{&inter.stack(), closure()};
 			(void)s;
 
 #ifdef __cpp_lib_ranges_zip
@@ -149,12 +155,13 @@ namespace lox
 
 	private:
 		func_stmt declaration_;
+		environment_ptr closure_;
 	};
 
 
-	callable callable::make_lox_function(func_stmt const& declaration)
+	callable callable::make_lox_function(func_stmt const& declaration, environment_ptr closure)
 	{
-		return callable{std::make_shared<lox_function_impl>(declaration)};
+		return callable{std::make_shared<lox_function_impl>(declaration, std::move(closure))};
 	}
 
 }

@@ -14,7 +14,7 @@ namespace lox {
 	class environment;
 	using environment_ptr = std::shared_ptr<environment>;
 
-	class environment : std::enable_shared_from_this<environment>
+	class environment : public std::enable_shared_from_this<environment>
 	{
 		using value_map = std::unordered_map<std::string, object>;
 
@@ -80,19 +80,19 @@ namespace lox {
 				{
 					auto obj{enclosing_->get(name)};
 #ifdef LOX_ENV_TRACE
-			std::cerr << "env[" << this << "]::get(name: '" << name << "') ret=[" << obj.str() << "]" << std::endl;
+					std::cerr << "env[" << this << ", enclosing: " << enclosing_.get() << "]::get(name: '" << name << "') ret=[" << obj.str() << "]" << std::endl;
 #endif
 					return obj;
 				}
 
 #ifdef LOX_ENV_TRACE
-			std::cerr << "env[" << this << "]::get(name: '" << name << "') *undefined*" << std::endl;
+				std::cerr << "env[" << this << ", enclosing: " << enclosing_.get() << "]::get(name: '" << name << "') *undefined*" << std::endl;
 #endif
 				undefined(name);
 			}
 
 #ifdef LOX_ENV_TRACE
-			std::cerr << "env[" << this << "]::assign(name: '" << name << "') ret=[" << i->second.str() << "]" << std::endl;
+			std::cerr << "env[" << this << ", enclosing: " << enclosing_.get() << "]::get(name: '" << name << "') ret=[" << i->second.str() << "]" << std::endl;
 #endif
 			return i->second;
 		}
@@ -117,7 +117,7 @@ namespace lox {
 	class scope
 	{
 	public:
-		explicit scope(scope_stack* scope);
+		explicit scope(scope_stack* scope, environment_ptr closure = {});
 		~scope();
 
 		scope(scope const&) = delete;
@@ -164,12 +164,12 @@ namespace lox {
 	private:
 		std::vector<environment_ptr> stack_;
 
-		[[nodiscard]] environment_ptr push()
+		[[nodiscard]] environment_ptr push(environment_ptr closure = {})
 		{
 			if (stack_.empty())
 				stack_.emplace_back(std::make_shared<environment>());
 			else
-				stack_.emplace_back(std::make_shared<environment>(stack_.back()));
+				stack_.emplace_back(std::make_shared<environment>(closure ? closure : stack_.back()));
 			return stack_.back();
 		}
 
@@ -181,11 +181,11 @@ namespace lox {
 	};
 
 
-	inline scope::scope(scope_stack* stack)
+	inline scope::scope(scope_stack* stack, environment_ptr closure)
 	: stack_{stack}
 	{
 		assert(stack_ != nullptr);
-		env_ = stack_->push();
+		env_ = stack_->push(closure);
 		assert(env_ != nullptr);
 	}
 
