@@ -112,7 +112,7 @@ public:
 	void visit(func_stmt const& stmt) override
 	{
 		ignore_unused(stmt);
-		auto func{callable::make_lox_function(stmt)};
+		auto func{callable::make_lox_function(stmt, stack_.current().shared_from_this())};
 		current_env().define(std::string{stmt.name().lexeme()}, object{func});
 	}
 

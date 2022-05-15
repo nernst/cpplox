@@ -108,6 +108,7 @@ global c
 	BOOST_TEST(!had_error);
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
 	BOOST_REQUIRE_EQUAL(output, trim(expected));
 }
 
@@ -129,6 +130,7 @@ print a;
 	BOOST_TEST(!had_error);
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
 	BOOST_REQUIRE_EQUAL(output, expected);
 }
 
@@ -151,6 +153,7 @@ print a;
 	BOOST_TEST(!had_error);
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
 	BOOST_REQUIRE_EQUAL(output, expected);
 }
 
@@ -169,6 +172,7 @@ nil)expected"s;
 	BOOST_TEST(!had_error);
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
 	BOOST_REQUIRE_EQUAL(output, expected);
 }
 
@@ -187,6 +191,7 @@ test3)expected"s;
 	BOOST_TEST(!had_error);
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
 	BOOST_REQUIRE_EQUAL(output, expected);
 }
 
@@ -216,6 +221,7 @@ while (a > 0)
 	BOOST_TEST(!had_error);
 	BOOST_TEST(!had_parse_error);
 	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
 	BOOST_REQUIRE_EQUAL(output, trim(expected));
 }
 
@@ -380,4 +386,37 @@ for (var i = 0; i < 20; i = i + 1) {
 	BOOST_REQUIRE_EQUAL(error, ""s);
 	BOOST_REQUIRE_EQUAL(output, trim(expected));
 }
+
+BOOST_AUTO_TEST_CASE(interpreter_closure)
+{
+	auto test = R"test(
+fun makeCounter() {
+	var i = 0;
+	fun count() {
+		i = i + 1;
+		print i;
+	}
+
+	return count;
+}
+
+var counter = makeCounter();
+counter(); // 1
+counter(); // 2
+)test"s;
+
+	auto expected = R"expected(
+1
+2
+)expected"s;
+
+	auto [had_error, had_parse_error, had_runtime_error, output, error] = run_test_case_output("func-return", test);
+
+	BOOST_TEST(!had_error);
+	BOOST_TEST(!had_parse_error);
+	BOOST_TEST(!had_runtime_error);
+	BOOST_REQUIRE_EQUAL(error, ""s);
+	BOOST_REQUIRE_EQUAL(output, trim(expected));
+}
+
 

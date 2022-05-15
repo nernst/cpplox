@@ -10,6 +10,8 @@ namespace lox
 	class interpreter;
 	class object;
 	class func_stmt;
+	class environment;
+	using environment_ptr = std::shared_ptr<environment>;
 
 	class callable
 	{
@@ -68,7 +70,7 @@ namespace lox
 			return callable{std::make_shared<Impl>()};
 		}
 
-		static callable make_lox_function(func_stmt const& declaration);
+		static callable make_lox_function(func_stmt const& declaration, environment_ptr closure);
 
 		static std::vector<callable> builtins();
 

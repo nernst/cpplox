@@ -2,6 +2,10 @@ default: debug
 
 .BLDROOT. := $(shell pwd)
 
+USE_UBSAN := 1
+# Note: current implementation leaks on closures, so disable asan for now.
+USE_ASAN := 0
+
 SHELL := bash
 CC := g++-11
 LD := $(CC)
@@ -21,7 +25,19 @@ SYSINCLUDES:= $(BOOST) external/fmt-$(FMT_VERSION)/include
 START_GROUP := 
 END_GROUP := 
 
-LIBS := asan ubsan
+LIBS :=
+
+ifeq ($(USE_UBSAN)$(USE_ASAN),11) 
+	SANITIZERS := -fsanitize=undefined,address
+	LIBS += asan ubsan
+else ifeq ($(USE_UBSAN),1)
+	SANITIZERS := -fsanitize=undefined
+	LIBS += ubsan
+else ifeq ($(USE_ASAN),1)
+	SANITIZERS := -fsantizie=address
+	LIBS == asan
+endif 
+
 LIBDIRS := /usr/lib/gcc/x86_64-linux-gnu/11/
 
 deps:
@@ -60,9 +76,9 @@ INCDIRS := $(addprefix -I,$(INCLUDES)) $(addprefix -isystem,$(SYSINCLUDES))
 WARNINGS := -Wall -Wextra -Werror -Wpessimizing-move -Wredundant-move -Wold-style-cast -Woverloaded-virtual
 
 # compiler/linker flags
-CXXFLAGS := -std=c++2a -Iinc $(WARNINGS) -MMD -MP $(INCDIRS) -fexceptions -fsanitize=undefined,address $(EXTRA_CXXFLAGS)
+CXXFLAGS := -std=c++2a -Iinc $(WARNINGS) -MMD -MP $(INCDIRS) -fexceptions $(SANITIZERS) $(EXTRA_CXXFLAGS)
 
-# NOTE: add -DLOX_ENV_TRACE to facility env debugging
+# NOTE: add -DLOX_ENV_TRACE to facilitate env debugging
 DBGFLAGS := -g -O0 -D_GLIBCXX_ASSERTIONS -fno-omit-frame-pointer # -DLOX_ENV_TRACE
 RELFLAGS := -O3
 TESTFLAGS := $(DBGFLAGS) -I$(SOURCE_DIR)
