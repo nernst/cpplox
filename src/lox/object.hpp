@@ -61,6 +61,14 @@ namespace lox
 		: value_{nullptr}
 		{ }
 
+		object(object const& copy)
+		: value_{copy.value_}
+		{ }
+
+		object(object&& from)
+		: value_{std::move(from.value_)}
+		{ }
+
 		template<typename T>
 		explicit object(T&& value)
 		: value_{std::forward<T>(value)}
@@ -73,6 +81,20 @@ namespace lox
 		explicit object(std::string_view value)
 		: value_{std::string{value}}
 		{ }
+
+		object& operator=(object const& copy)
+		{
+			if (this != &copy)
+				value_ = copy.value_;
+			return *this;
+		}
+
+		object& operator=(object&& from)
+		{
+			if (this != &from)
+				value_ = std::move(from.value_);
+			return *this;
+		}
 
 		type get_type() const { return static_cast<type>(value_.index()); }
 

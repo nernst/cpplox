@@ -52,6 +52,11 @@ public:
 	environment& global_env() { return stack_.global(); }
 	environment& current_env() { return stack_.current(); }
 
+	void resolve(expression const& expr, size_t depth)
+	{
+		locals_.insert_or_assign(&expr, depth);
+	}
+
 	void interpret(statement_vec const& statements)
 	{
 		execute_block(statements);
@@ -278,19 +283,36 @@ public:
 
 	void visit(variable const& variable) override
 	{
-		result_ = current_env().get(variable.name());
+		result_ = lookup_variable(variable.name_token(), variable);
 	}
 
 	void visit(assign const& expr) override
 	{
 		auto value = evaluate(expr.value());
-		current_env().assign(expr.name(), value);
+		auto i{locals_.find(&expr)};
+		if (i == locals_.end())
+			global_env().assign(expr.name(), std::move(value));
+		else
+			current_env().assign_at(i->second, expr.name_token(), std::move(value));
+
 		result_ = value;
 	}
 
 private:
 	object result_;
 	scope_stack stack_;
+
+	using locals_t = std::unordered_map<expression const*, std::size_t>;
+	locals_t locals_;
+
+	object lookup_variable(token const& name, expression const& expr)
+	{
+		auto i{locals_.find(&expr)};
+		if (i == locals_.end())
+			return global_env().get(std::string{name.lexeme()});
+		else
+			return current_env().get_at(i->second, std::string{name.lexeme()});
+	}
 
 	object evaluate(expression const& expr)
 	{

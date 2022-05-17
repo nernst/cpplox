@@ -59,5 +59,18 @@ namespace lox {
 		);
 	}
 
+	inline void log_error(std::ostream& err_stream, token const& tok, std::string_view message)
+	{
+		auto const& loc = tok.source_location();
+		auto [line_no, line_off, line] = loc.get_line();
+
+		err_stream << "in " << loc.where().name() << " (" << line_no << ':' << line_off << "): " << message << '\n';
+		err_stream << fmt::format("{:>5} |", line_no) << line << '\n';
+		err_stream << "      |";
+		for (size_t count = line_off; count; --count)
+			err_stream << ' ';
+		err_stream << "^\n";
+	}
+
 } // namespace lox
 

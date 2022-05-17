@@ -109,22 +109,9 @@ private:
 		return tokens_[current_ - 1];
 	}
 
-	parse_error on_error(
-		token const& tok, 
-		std::string_view message
-	)
+	parse_error on_error(token const& tok, std::string_view message)
 	{
-		auto const& loc = tok.source_location();
-		auto [line_no, line_off, line] = loc.get_line();
-
-		*error_ << "in " << loc.where().name() << " (" << line_no << ':' << line_off << "): " << message << '\n';
-		*error_ << fmt::format("{:>5} |", line_no) << line << '\n';
-		*error_ << "      |";
-		for (size_t count = line_off; count; --count)
-			*error_ << ' ';
-		*error_ << "^\n";
-
-		// log error
+		::lox::log_error(*error_, tok, message);
 		return parse_error{tok.type(), message};
 	}
 

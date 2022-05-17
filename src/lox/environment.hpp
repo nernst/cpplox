@@ -37,6 +37,40 @@ namespace lox {
 
 		environment_ptr const& enclosing() const { return enclosing_; }
 
+		environment_ptr ancestor(std::size_t distance)
+		{
+			environment_ptr env{shared_from_this()};
+
+			for (std::size_t i{0}; i < distance; ++i)
+			{
+				assert(env->enclosing());
+				env = env->enclosing();
+			}
+
+			return env;
+		}
+
+		object get_at(std::size_t distance, std::string const& name)
+		{
+			auto env{ancestor(distance)};
+			auto i{env->values_.find(name)};
+			if (i == env->values_.end())
+				return {};
+			return i->second;
+		}
+		
+		template<typename Token, typename T>
+		void assign_at(std::size_t distance, Token const& name, T&& value)
+		{
+			assign_at(distance, std::string{name.lexeme()}, std::forward<T>(value));
+		}
+
+		template<typename T>
+		void assign_at(std::size_t distance, std::string const& name, T&& value)
+		{
+			ancestor(distance)->values_.insert_or_assign(name, std::forward<T>(value));
+		}
+
 		template<typename T, typename U>
 		void define(T&& name, U&& value)
 		{
@@ -52,49 +86,55 @@ namespace lox {
 		template<typename U>
 		void assign(std::string const& name, U&& value)
 		{
-#ifdef LOX_ENV_TRACE
-			std::cerr << "env[" << this << "]::assign(name: '" << name << "', value: [" << value.str() << "])" << std::endl;
-#endif
-			auto i = values_.find(name);
-			if (i == end(values_))
+			auto env{this};
+			while (env != nullptr)
 			{
-				if (enclosing_ != nullptr)
+#ifdef LOX_ENV_TRACE
+				std::cerr << "env[" << env << "]::assign(name: '" << name << "', value: [" << value.str() << "])" << std::endl;
+#endif
+				auto i = env->values_.find(name);
+				if (i == end(env->values_))
 				{
-					enclosing_->assign(name, std::forward<U>(value));
+					env = env->enclosing_.get();
+				}
+				else
+				{
+					i->second = std::forward<U>(value);
 					return;
 				}
-
-				undefined(name);
 			}
-			else
-				i->second = std::forward<U>(value);
+
+			undefined(name);
 		}
 
 		object get(std::string const& name) const
 		{
-			// std::cerr << "environment::get this=" << this << ", name=" << name << std::endl;
-			auto i = values_.find(name);
-			if (i == values_.end())
+			auto env{this};
+
+			while (env != nullptr)
 			{
-				if (enclosing_ != nullptr)
+#ifdef LOX_ENV_TRACE
+				std::cerr << "env[" << env << ", enclosing: " << env->enclosing_.get() << "]::get(name: '" << name << "') ..." << std::endl;
+#endif
+				auto i = env->values_.find(name);
+				if (i == env->values_.end())
 				{
-					auto obj{enclosing_->get(name)};
-#ifdef LOX_ENV_TRACE
-					std::cerr << "env[" << this << ", enclosing: " << enclosing_.get() << "]::get(name: '" << name << "') ret=[" << obj.str() << "]" << std::endl;
-#endif
-					return obj;
+					env = env->enclosing_.get();
 				}
-
+				else
+				{
 #ifdef LOX_ENV_TRACE
-				std::cerr << "env[" << this << ", enclosing: " << enclosing_.get() << "]::get(name: '" << name << "') *undefined*" << std::endl;
+					std::cerr << "env[" << env << ", enclosing: " << env->enclosing_.get() << "]::get(name: '" << name << "') ret = " << i->second.str() << std::endl;
 #endif
-				undefined(name);
+
+					return i->second;
+				}
 			}
-
+			
 #ifdef LOX_ENV_TRACE
-			std::cerr << "env[" << this << ", enclosing: " << enclosing_.get() << "]::get(name: '" << name << "') ret=[" << i->second.str() << "]" << std::endl;
+			std::cerr << "env[" << this << "]::get(name: '" << name << "') *undefined*" << std::endl;
 #endif
-			return i->second;
+			undefined(name);
 		}
 
 		std::vector<std::string> names() const

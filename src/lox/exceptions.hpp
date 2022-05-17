@@ -133,5 +133,6 @@ namespace lox
 		throw ExType{std::forward<Args>(args)..., location};
 	}
 
+
 } // namespace lox
 

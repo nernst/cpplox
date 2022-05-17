@@ -5,6 +5,7 @@
 #include "expr.hpp"
 #include "interpreter.hpp"
 #include "parser.hpp"
+#include "resolver.hpp"
 #include "scanner.hpp"
 #include "source_file.hpp"
 
@@ -61,17 +62,23 @@ namespace lox {
 			had_error_ = had_error;
 			had_parse_error_ = had_parse_error_;
 
-			if (!had_parse_error)
+			if (had_parse_error)
+				return;
+
+			resolver res{stderr(), interpreter_};
+			res.resolve(statements);
+
+			if (res.had_error())
+				return;
+
+			try
 			{
-				try
-				{
-					interpreter_.interpret(statements);
-				}
-				catch(runtime_error const& ex)
-				{
-					had_runtime_error_ = true;
-					stderr() << ex.what() << std::endl;
-				}
+				interpreter_.interpret(statements);
+			}
+			catch(runtime_error const& ex)
+			{
+				had_runtime_error_ = true;
+				stderr() << ex.what() << std::endl;
 			}
 		}
 	
