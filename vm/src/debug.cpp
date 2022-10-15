@@ -49,6 +49,18 @@ namespace lox
             case OpCode::OP_CONSTANT:
                 return constant(chunk, "OP_CONSTANT", offset);
 
+            case OpCode::OP_ADD:
+                return simple(chunk, "OP_ADD", offset);
+
+            case OpCode::OP_SUBTRACT:
+                return simple(chunk, "OP_SUBTRACT", offset);
+
+            case OpCode::OP_MULTIPLY:
+                return simple(chunk, "OP_MULTIPLE", offset);
+
+            case OpCode::OP_DIVIDE:
+                return simple(chunk, "OP_DIVIDE", offset);
+
             case OpCode::OP_NEGATE:
                 return simple(chunk, "OP_NEGATE", offset);
 

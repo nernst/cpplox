@@ -15,6 +15,12 @@ namespace lox
 
     VM::Result VM::run()
     {
+        #define BINARY_OP(op) do { \
+            Value a = pop(); \
+            Value b = pop(); \
+            push(a op b); \
+        } while (false)
+
         while (true)
         {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -38,6 +44,11 @@ namespace lox
                     }
                     break;
 
+                case OpCode::OP_ADD: BINARY_OP(+); break;
+                case OpCode::OP_SUBTRACT: BINARY_OP(-); break;
+                case OpCode::OP_MULTIPLY: BINARY_OP(*); break;
+                case OpCode::OP_DIVIDE: BINARY_OP(/); break;
+
                 case OpCode::OP_NEGATE:
                     push(-pop());
                     break;
@@ -48,5 +59,6 @@ namespace lox
                     return Result::OK;
             }
         }
+        #undef BINARY_OP
     }
 }
