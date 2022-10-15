@@ -1,3 +1,4 @@
+#include "lox/compiler.hpp"
 #include "lox/vm.hpp"
 #ifdef DEBUG_TRACE_EXECUTION
 #include "lox/debug.hpp"
@@ -6,6 +7,12 @@
 
 namespace lox
 {
+    VM::Result VM::interpret(std::string const& source)
+    {
+        chunk_ = compile(source);
+        return interpret();
+    }
+
     VM::Result VM::interpret()
     {
         ip_start_ = ip_ = chunk_.code().data();

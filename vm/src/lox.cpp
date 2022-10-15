@@ -3,9 +3,50 @@
 #include "lox/debug.hpp"
 #include "lox/vm.hpp"
 
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <sstream>
 #include <fmt/format.h>
 
 using namespace lox;
+
+void repl(VM& vm)
+{
+	std::string line;
+
+	while (true)
+	{
+		if (std::getline(std::cin, line))
+		{
+			std::cout << std::endl;
+			break;
+		}
+
+		vm.interpret(line);
+	}
+}
+
+std::string read_file(std::string const& name)
+{
+	std::ifstream infile{name};
+	std::stringstream buffer;
+	buffer << infile.rdbuf();
+	return buffer.str();
+
+}
+
+void run_file(VM& vm, std::string const& name)
+{
+	auto source{read_file(name)};
+	auto result = vm.interpret(source);
+	switch(result)
+	{
+		case VM::Result::COMPILE_ERROR: exit(65);
+		case VM::Result::RUNTIME_ERROR: exit(70);
+		default: break;
+	}
+}
 
 int main(int argc, const char* argv[])
 {

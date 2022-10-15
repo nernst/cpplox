@@ -2,6 +2,7 @@
 
 #include "chunk.hpp"
 #include <cassert>
+#include <string>
 
 namespace lox
 {
@@ -28,6 +29,7 @@ namespace lox
         VM& operator=(VM const&) = delete;
         VM& operator=(VM&&) = default;
 
+        Result interpret(std::string const& source);
         Result interpret();
 
     private:
