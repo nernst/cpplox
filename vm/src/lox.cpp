@@ -16,7 +16,7 @@ int main(int argc, const char* argv[])
 	int constant = chunk.add_constant(3.14159);
 	chunk.write(OpCode::OP_CONSTANT, 123);
 	chunk.write(static_cast<byte>(constant), 123);
-
+	chunk.write(OpCode::OP_NEGATE, 123);
 	chunk.write(OpCode::OP_RETURN, 124);
 	disassemble(chunk, "test chunk");
 	fmt::print("\n");

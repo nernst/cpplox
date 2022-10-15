@@ -38,6 +38,10 @@ namespace lox
                     }
                     break;
 
+                case OpCode::OP_NEGATE:
+                    push(-pop());
+                    break;
+
                 case OpCode::OP_RETURN:
                     print_value(pop());
                     fmt::print("\n");

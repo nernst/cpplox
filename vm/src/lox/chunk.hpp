@@ -12,6 +12,7 @@ namespace lox
 	enum class OpCode : byte
 	{
 		OP_CONSTANT,
+		OP_NEGATE,
 		OP_RETURN,
 	};
 

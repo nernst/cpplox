@@ -49,6 +49,9 @@ namespace lox
             case OpCode::OP_CONSTANT:
                 return constant(chunk, "OP_CONSTANT", offset);
 
+            case OpCode::OP_NEGATE:
+                return simple(chunk, "OP_NEGATE", offset);
+
             case OpCode::OP_RETURN:
                 return simple(chunk, "OP_RETURN", offset);
             
