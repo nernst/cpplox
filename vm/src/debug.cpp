@@ -21,31 +21,6 @@ namespace lox
             fmt::print("'\n");
             return offset + 2;
         }
-
-        size_t disassemble(Chunk const& chunk, size_t offset)
-        {
-            fmt::print("{:04} ", offset);
-
-            if (offset && chunk.lines()[offset] != chunk.lines()[offset - 1])
-                fmt::print("   | ");
-            else
-                fmt::print("{:4} " , chunk.lines()[offset]);
-
-            byte instruction{chunk.code()[offset]};
-
-            switch (static_cast<OpCode>(instruction))
-            {
-                case OpCode::OP_CONSTANT:
-                    return constant(chunk, "OP_CONSTANT", offset);
-
-                case OpCode::OP_RETURN:
-                    return simple(chunk, "OP_RETURN", offset);
-                
-                default:
-                    fmt::print("Unknown op code: {}\n", instruction);
-                    return offset + 1;
-            }
-        }
     }
 
     void disassemble(Chunk const& chunk, std::string_view name)
@@ -55,6 +30,31 @@ namespace lox
         for (size_t offset = 0; offset < chunk.code().size(); )
         {
             offset = disassemble(chunk, offset);
+        }
+    }
+
+    size_t disassemble(Chunk const& chunk, size_t offset)
+    {
+        fmt::print("{:04} ", offset);
+
+        if (offset && chunk.lines()[offset] != chunk.lines()[offset - 1])
+            fmt::print("   | ");
+        else
+            fmt::print("{:4} " , chunk.lines()[offset]);
+
+        byte instruction{chunk.code()[offset]};
+
+        switch (static_cast<OpCode>(instruction))
+        {
+            case OpCode::OP_CONSTANT:
+                return constant(chunk, "OP_CONSTANT", offset);
+
+            case OpCode::OP_RETURN:
+                return simple(chunk, "OP_RETURN", offset);
+            
+            default:
+                fmt::print("Unknown op code: {}\n", instruction);
+                return offset + 1;
         }
     }
 }

@@ -1,6 +1,9 @@
 #include "lox/common.hpp"
 #include "lox/chunk.hpp"
 #include "lox/debug.hpp"
+#include "lox/vm.hpp"
+
+#include <fmt/format.h>
 
 using namespace lox;
 
@@ -16,6 +19,11 @@ int main(int argc, const char* argv[])
 
 	chunk.write(OpCode::OP_RETURN, 124);
 	disassemble(chunk, "test chunk");
+	fmt::print("\n");
+
+	VM vm(std::move(chunk));
+	vm.interpret();
+
 	
 	return 0;
 }

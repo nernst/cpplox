@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#define DEBUG_TRACE_EXECUTION
+
 namespace lox
 {
 	using byte = std::uint8_t;

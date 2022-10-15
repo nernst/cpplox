@@ -47,9 +47,9 @@ namespace lox
 			return static_cast<byte>(constants_.size() - 1);
 		}
 
-		std::vector<byte> code() const { return code_; }
+		std::vector<byte> const& code() const { return code_; }
 		ValueArray const& constants() const { return constants_; }
-		std::vector<size_t> lines() const { return lines_; }
+		std::vector<size_t> const& lines() const { return lines_; }
 
 	private:
 		std::vector<byte> code_;
