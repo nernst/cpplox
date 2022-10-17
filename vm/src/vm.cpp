@@ -75,7 +75,7 @@ namespace lox
                             assert(lhs && "Expected String*!");
                             assert(rhs && "Expected String*!");
 
-                            push(Value(new String{lhs->str() + rhs->str()}));
+                            push(Value(allocate<String>(lhs->str() + rhs->str())));
                         }
                         else if (peek(0).is_number() && peek(1).is_number())
                         {

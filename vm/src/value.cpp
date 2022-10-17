@@ -4,6 +4,16 @@
 
 namespace lox
 {
+    ValueArray::~ValueArray()
+    {
+        for (auto& value : data_)
+        {
+            Object* obj;
+            if (value.try_get(obj))
+                delete obj;
+        }
+    }
+  
     bool Value::operator==(Value const& other) const
     {
         if (value_.index() != other.value_.index())

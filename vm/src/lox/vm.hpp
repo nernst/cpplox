@@ -21,17 +21,31 @@ namespace lox
         VM(Chunk&& chunk)
         : chunk_(std::move(chunk))
         , ip_{nullptr}
+        , objects_{nullptr}
         { }
 
         VM(VM const&) = delete;
         VM(VM&&) = default;
 
-        ~VM() = default;
+        ~VM()
+        {
+            free_objects();
+        }
+
         VM& operator=(VM const&) = delete;
         VM& operator=(VM&&) = default;
 
         Result interpret(std::string const& source);
         Result interpret();
+
+        template<typename ObjectType, typename... Args>
+        ObjectType* allocate(Args&&... args)
+        {
+            ObjectType* obj = new ObjectType(std::forward<Args>(args)...);
+            obj->next_ = objects_;
+            objects_ = obj;
+            return obj;
+        }
 
     private:
         Chunk chunk_;
@@ -39,6 +53,16 @@ namespace lox
         byte const* ip_start_;
         byte const* ip_end_;
         std::vector<Value> stack_;
+        Object* objects_;
+
+        void free_objects() {
+            Object* object = objects_;
+            while (object != nullptr) {
+                Object* next = object->next_;
+                delete object;
+                object = next;
+            }
+        }
 
         Value const& peek(size_t distance) const {
             assert(distance < stack_.size());

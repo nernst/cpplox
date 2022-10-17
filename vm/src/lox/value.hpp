@@ -128,7 +128,7 @@ namespace lox
         ValueArray(ValueArray const&) = default;
         ValueArray(ValueArray&&) = default;
 
-        ~ValueArray() = default;
+        ~ValueArray();
 
         ValueArray& operator=(ValueArray const&) = default;
         ValueArray& operator=(ValueArray&&) = default;

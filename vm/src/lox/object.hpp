@@ -10,18 +10,32 @@ namespace lox
     };
 
     class Object;
+    class VM;
 
     void print_object(Object const& object);
 
     class Object
     {
+        friend class VM;
+
     public:
+        Object()
+        : next_{nullptr}
+        { }
+
+        Object(Object const&) = delete;
+        Object(Object&&) = delete;
 
         virtual ~Object() = 0;
+
+        Object& operator=(Object const&) = delete;
+        Object& operator=(Object&&) = delete;
         
         virtual ObjectType type() const = 0;
 
     private:
+        // for GC
+        Object* next_;
     };
 
     class String : public Object
