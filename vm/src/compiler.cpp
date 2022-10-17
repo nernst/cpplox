@@ -172,6 +172,13 @@ namespace lox
                 emit(Value{d});
             }
 
+            void string()
+            {
+                emit(Value{
+                    new String{std::string{previous_.start + 1, previous_.length - 2}}
+                });
+            }
+
             void grouping()
             {
                 expression();
@@ -269,6 +276,7 @@ namespace lox
                     RULE(SLASH, nullptr, &Compiler::binary, FACTOR),
                     RULE(STAR, nullptr, &Compiler::binary, FACTOR),
                     RULE(NUMBER, &Compiler::number, nullptr, NONE),
+                    RULE(STRING, &Compiler::string, nullptr, NONE),
                     RULE(FALSE, &Compiler::literal, nullptr, NONE),
                     RULE(TRUE, &Compiler::literal, nullptr, NONE),
                     RULE(NIL, &Compiler::literal, nullptr, NONE),

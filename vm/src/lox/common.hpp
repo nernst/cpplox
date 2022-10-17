@@ -7,6 +7,8 @@
 #include <string_view>
 #include <vector>
 
+#include <fmt/format.h>
+
 #define DEBUG_COMPILE
 #define DEBUG_PRINT_CODE
 #define DEBUG_TRACE_EXECUTION

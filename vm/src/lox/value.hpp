@@ -1,4 +1,5 @@
 #include "common.hpp"
+#include "object.hpp"
 #include <cassert>
 #include <type_traits>
 #include <variant>
@@ -11,7 +12,8 @@ namespace lox
         using value_t = std::variant<
             std::nullptr_t,
             bool,
-            double
+            double,
+            Object*
         >;
 
     public:
@@ -33,6 +35,10 @@ namespace lox
         explicit Value(Integer value)
         : value_{static_cast<double>(value)}
         {}
+
+        explicit Value(Object* object)
+        : value_{object}
+        { }
 
         Value(Value const& copy)
         : value_{copy.value_}
@@ -72,9 +78,20 @@ namespace lox
 
         bool is_true() const { return bool{*this}; }
         bool is_false() const { return !is_true(); }
+        bool is_object() const { return is<Object*>(); }
+        bool is_object_type(ObjectType type) const {
+            Object* obj{nullptr};
+            if (try_get(obj)) {
+                return obj->type() == type;
+            }
+            return false;
+        }
 
-        bool operator==(Value const& other) const
-        { return value_ == other.value_; }
+        bool is_string() const { return is_object_type(ObjectType::STRING); }
+        bool is_number() const { return is<double>(); }
+        bool is_nil() const { return is<nullptr_t>(); }
+
+        bool operator==(Value const& other) const;
 
         bool operator!=(Value const& other) const
         { return value_ != other.value_; }
@@ -86,7 +103,7 @@ namespace lox
         T get() const { return std::get<T>(value_); }
 
         template<typename T>
-        bool try_get(T& out) {
+        bool try_get(T& out) const {
             if (is<T>()) {
                 out = get<T>();
                 return true;

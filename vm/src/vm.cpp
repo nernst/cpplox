@@ -64,7 +64,34 @@ namespace lox
                 case OpCode::OP_TRUE: push(Value(true)); break;
                 case OpCode::OP_FALSE: push(Value(false)); break;
 
-                case OpCode::OP_ADD: BINARY_OP(+); break;
+                case OpCode::OP_ADD:
+                    {
+                        if (peek(0).is_string() && peek(1).is_string())
+                        {
+                            Value v_lhs{pop()};
+                            Value v_rhs{pop()};
+                            String* lhs = dynamic_cast<String*>(v_lhs.get<Object*>()); 
+                            String* rhs = dynamic_cast<String*>(v_rhs.get<Object*>());
+                            assert(lhs && "Expected String*!");
+                            assert(rhs && "Expected String*!");
+
+                            push(Value(new String{lhs->str() + rhs->str()}));
+                        }
+                        else if (peek(0).is_number() && peek(1).is_number())
+                        {
+                            Value lhs{pop()};
+                            Value rhs{pop()};
+                            push(Value{lhs.get<double>() + rhs.get<double>()});
+                        }
+                        else
+                        {
+                            runtime_error("Operands must be two numbers or two strings.");
+                            return Result::RUNTIME_ERROR;
+                        }
+
+                    }
+                    break;
+
                 case OpCode::OP_SUBTRACT: BINARY_OP(-); break;
                 case OpCode::OP_MULTIPLY: BINARY_OP(*); break;
                 case OpCode::OP_DIVIDE: BINARY_OP(/); break;
