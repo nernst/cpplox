@@ -2,7 +2,7 @@
 
 #include "common.hpp"
 #include <cassert>
-#include <string_view>
+#include <fmt/format.h>
 
 namespace lox 
 {
@@ -60,6 +60,7 @@ namespace lox
         const char* start;
         size_t length;
         std::string_view token;
+        std::string message;
     };
 
     class Scanner
@@ -110,13 +111,16 @@ namespace lox
         Token::Type identifier_type() const;
         Token::Type check_keyword(size_t start, size_t length, const char* rest, Token::Type type) const;
 
-        Token error(std::string_view message) const {
+        template<typename... Args>
+        Token error(fmt::format_string<Args...> format, Args&&... args) {
+            auto length = static_cast<size_t>(current_ - start_);
             return Token{
                 line_,
                 Token::ERROR,
-                message.data(),
-                message.length(),
-                message,
+                start_, 
+                length,
+                std::string_view{start_, length},
+                fmt::format(format, std::forward<Args>(args)...)
             };
         }
 
@@ -128,6 +132,7 @@ namespace lox
                 start_,
                 length,
                 std::string_view{start_, length},
+                {}
             };
         }
 

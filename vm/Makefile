@@ -4,7 +4,7 @@ default: debug
 
 USE_UBSAN := 1
 # Note: current implementation leaks on closures, so disable asan for now.
-USE_ASAN := 0
+USE_ASAN := 1
 
 SHELL := bash
 CC := g++-11
@@ -105,7 +105,7 @@ PROG_DEBUG := $(DEB_DIR)/$(PROGRAM)
 
 OBJFILES_REL := $(patsubst $(SOURCE_DIR)/%.cpp,$(REL_OBJ_DIR)/%.o,$(SOURCES))
 OBJFILES_DBG := $(patsubst $(SOURCE_DIR)/%.cpp,$(DBG_OBJ_DIR)/%.o,$(SOURCES))
-OBJFILES_TST := $(patsubst $(TEST_SOURCE_DIR)/%.cpp,$(TST_OBJ_DIR)/%.o,$(TEST_SOURCES)) $(DBG_OBJ_DIR)/format.o $(DBG_OBJ_DIR)/callable.o
+OBJFILES_TST := $(patsubst $(TEST_SOURCE_DIR)/%.cpp,$(TST_OBJ_DIR)/%.o,$(TEST_SOURCES)) $(DBG_OBJ_DIR)/format.o $(DBG_OBJ_DIR)/scanner.o
 
 DEPFILES_REL := $(patsubst $(SOURCE_DIR)/%.cpp,$(REL_OBJ_DIR)/%.d,$(SOURCES))
 DEPFILES_DBG := $(patsubst $(SOURCE_DIR)/%.cpp,$(DBG_OBJ_DIR)/%.d,$(SOURCES))

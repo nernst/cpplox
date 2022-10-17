@@ -1,9 +1,10 @@
 #pragma once
 
+#include "common.hpp"
 #include "chunk.hpp"
 #include <string>
 
 namespace lox
 {
-    Chunk compile(std::string const& source);
+    bool compile(std::string const& source, Chunk& chunk);
 }

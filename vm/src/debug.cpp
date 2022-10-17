@@ -31,13 +31,21 @@ namespace lox
         {
             offset = disassemble(chunk, offset);
         }
+
+        fmt::print("== {} - {} constants==\n", name, chunk.constants().size());
+        for (size_t offset = 0; offset < chunk.constants().size(); ++offset)
+        {
+            fmt::print("{:3}: [", offset);
+            print_value(chunk.constants()[offset]);
+            fmt::print("]\n");
+        }
     }
 
     size_t disassemble(Chunk const& chunk, size_t offset)
     {
         fmt::print("{:04} ", offset);
 
-        if (offset && chunk.lines()[offset] != chunk.lines()[offset - 1])
+        if (offset && chunk.lines()[offset] == chunk.lines()[offset - 1])
             fmt::print("   | ");
         else
             fmt::print("{:4} " , chunk.lines()[offset]);
@@ -48,6 +56,24 @@ namespace lox
         {
             case OpCode::OP_CONSTANT:
                 return constant(chunk, "OP_CONSTANT", offset);
+
+            case OpCode::OP_NIL:
+                return simple(chunk, "OP_NIL", offset);
+            
+            case OpCode::OP_TRUE:
+                return simple(chunk, "OP_TRUE", offset);
+            
+            case OpCode::OP_FALSE:
+                return simple(chunk, "OP_FALSE", offset);
+
+            case OpCode::OP_EQUAL:
+                return simple(chunk, "OP_EQUAL", offset);
+
+            case OpCode::OP_GREATER:
+                return simple(chunk, "OP_GREATER", offset);
+
+            case OpCode::OP_LESS:
+                return simple(chunk, "OP_LESS", offset);
 
             case OpCode::OP_ADD:
                 return simple(chunk, "OP_ADD", offset);
@@ -60,6 +86,9 @@ namespace lox
 
             case OpCode::OP_DIVIDE:
                 return simple(chunk, "OP_DIVIDE", offset);
+
+            case OpCode::OP_NOT:
+                return simple(chunk, "OP_NOT", offset);
 
             case OpCode::OP_NEGATE:
                 return simple(chunk, "OP_NEGATE", offset);

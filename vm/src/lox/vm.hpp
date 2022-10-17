@@ -3,6 +3,7 @@
 #include "chunk.hpp"
 #include <cassert>
 #include <string>
+#include <fmt/format.h>
 
 namespace lox
 {
@@ -39,6 +40,11 @@ namespace lox
         byte const* ip_end_;
         std::vector<Value> stack_;
 
+        Value const& peek(size_t distance) const {
+            assert(distance < stack_.size());
+            return stack_[stack_.size() - 1 - distance];
+        }
+
         void push(Value value){ stack_.push_back(value); }
 
         Value pop() {
@@ -64,6 +70,16 @@ namespace lox
         Value read_constant() {
             const byte offset{read_byte()};
             return chunk_.constants()[offset]; 
+        }
+
+        template<typename... Args>
+        constexpr void runtime_error(fmt::format_string<Args...> format, Args... args)
+        {
+            size_t instruction = pc() - 1;
+            size_t line = chunk_.lines()[instruction];
+
+            fmt::print(stderr, format, args...);
+            fmt::print(stderr, "\n[line {}] in script\n", line);
         }
     };
 }

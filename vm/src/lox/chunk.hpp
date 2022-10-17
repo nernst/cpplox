@@ -12,10 +12,17 @@ namespace lox
 	enum class OpCode : byte
 	{
 		OP_CONSTANT,
+		OP_NIL,
+		OP_TRUE,
+		OP_FALSE,
+		OP_EQUAL,
+		OP_GREATER,
+		OP_LESS,
 		OP_ADD,
 		OP_SUBTRACT,
 		OP_MULTIPLY,
 		OP_DIVIDE,
+		OP_NOT,
 		OP_NEGATE,
 		OP_RETURN,
 	};
@@ -44,12 +51,12 @@ namespace lox
 			write(static_cast<byte>(value), line);
 		}
 
-		byte add_constant(Value value)
+		size_t add_constant(Value value)
 		{
 			assert(constants_.size() < 256);
 
 			constants_.write(value);
-			return static_cast<byte>(constants_.size() - 1);
+			return constants_.size() - 1;
 		}
 
 		std::vector<byte> const& code() const { return code_; }

@@ -12,6 +12,7 @@ namespace lox
 
     Token Scanner::scan()
     {
+        skip_ws();
         start_ = current_;
 
         if (is_at_end()) return make(Token::TOKEN_EOF);
@@ -48,7 +49,7 @@ namespace lox
             default: break;
         }
 
-        return error("Unexpected character.");
+        return error("Unexpected character: '{}'.", c);
     }
 
     void Scanner::skip_ws()

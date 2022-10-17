@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/external/fmt-8.1.1/include",
+                "/home/nernst/boost_1_79_0"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++-11",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++23",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

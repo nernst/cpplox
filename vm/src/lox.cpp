@@ -17,11 +17,15 @@ void repl(VM& vm)
 
 	while (true)
 	{
-		if (std::getline(std::cin, line))
-		{
-			std::cout << std::endl;
+		fmt::print("> ");
+
+		std::getline(std::cin, line);
+		std::cout << std::endl;
+		if (!std::cin)
 			break;
-		}
+
+		if (line.empty())
+			continue;
 
 		vm.interpret(line);
 	}
@@ -52,29 +56,17 @@ int main(int argc, const char* argv[])
 {
 	ignore(argc, argv);
 
-	Chunk chunk;
+	VM vm;
 
-	byte constant = chunk.add_constant(1.2);
-	chunk.write(OpCode::OP_CONSTANT, 123);
-	chunk.write(constant, 123);
-	constant = chunk.add_constant(3.4);
-	chunk.write(OpCode::OP_CONSTANT, 123);
-	chunk.write(constant, 123);
-	chunk.write(OpCode::OP_ADD, 123);
-
-	constant = chunk.add_constant(5.6);
-	chunk.write(OpCode::OP_CONSTANT, 123);
-	chunk.write(constant, 123);
-
-	chunk.write(OpCode::OP_DIVIDE, 123);
-	chunk.write(OpCode::OP_NEGATE, 123);
-	chunk.write(OpCode::OP_RETURN, 124);
-	disassemble(chunk, "test chunk");
-	fmt::print("\n");
-
-	VM vm(std::move(chunk));
-	vm.interpret();
-
+	if (argc == 1)
+		repl(vm);
+	else if (argc == 2)
+		run_file(vm, argv[1]);
+	else
+	{
+		fmt::print(stderr, "Usage: lox [path]\n");
+		exit(64);
+	}
 	
 	return 0;
 }
