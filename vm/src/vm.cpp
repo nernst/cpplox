@@ -69,7 +69,7 @@ namespace lox
                 case OpCode::OP_MULTIPLY: BINARY_OP(*); break;
                 case OpCode::OP_DIVIDE: BINARY_OP(/); break;
 
-                case OpCode::OP_NOT: push(Value(pop().is_falsey())); break;
+                case OpCode::OP_NOT: push(Value(!bool{pop()})); break;
                 case OpCode::OP_EQUAL: push(Value(pop() == pop())); break;
                 case OpCode::OP_LESS: BINARY_OP(<); break;
                 case OpCode::OP_GREATER: BINARY_OP(>); break;

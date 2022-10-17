@@ -1,5 +1,6 @@
 #include "common.hpp"
 #include <cassert>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -26,6 +27,13 @@ namespace lox
         : value_{value}
         { }
 
+        template <typename Integer,
+                std::enable_if_t<std::is_integral<Integer>::value, bool> = true
+        >
+        explicit Value(Integer value)
+        : value_{static_cast<double>(value)}
+        {}
+
         Value(Value const& copy)
         : value_{copy.value_}
         {}
@@ -49,7 +57,7 @@ namespace lox
             return *this;
         }
 
-        bool is_falsey() const {
+        explicit operator bool() const {
             return apply([](auto&& value) -> bool {
                 using T = std::decay_t<decltype(value)>;
                 if constexpr(std::is_same_v<T, nullptr_t>)
@@ -57,9 +65,13 @@ namespace lox
                 else if constexpr(std::is_same_v<T, bool>)
                     return value;
                 else
-                    return false;
+                    return true;
             });
+
         }
+
+        bool is_true() const { return bool{*this}; }
+        bool is_false() const { return !is_true(); }
 
         bool operator==(Value const& other) const
         { return value_ == other.value_; }
