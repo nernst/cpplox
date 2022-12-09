@@ -1,6 +1,7 @@
 #pragma once
 
 #include "chunk.hpp"
+#include "map.hpp"
 #include <cassert>
 #include <string>
 #include <fmt/format.h>
@@ -54,6 +55,7 @@ namespace lox
         byte const* ip_end_;
         std::vector<Value> stack_;
         Object* objects_;
+        Map strings_;
 
         void free_objects() {
             Object* object = objects_;

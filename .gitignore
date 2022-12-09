@@ -4,3 +4,5 @@ bin
 obj
 **/*.*out
 external/**
+vm/external/**
+**/tmp/
