@@ -18,9 +18,9 @@ SOURCES := $(wildcard $(SOURCE_DIR)/*.cpp)
 TEST_SOURCE_DIR := tests
 TEST_SOURCES := $(wildcard $(TEST_SOURCE_DIR)/*.cpp)
 
-BOOST := $(HOME)/boost_1_79_0
+BOOST := $(HOME)/tp/boost/1.81.0
 INCLUDES :=
-SYSINCLUDES:= $(BOOST) external/fmt-$(FMT_VERSION)/include
+SYSINCLUDES:= $(BOOST)/include external/fmt-$(FMT_VERSION)/include
 
 START_GROUP := 
 END_GROUP := 

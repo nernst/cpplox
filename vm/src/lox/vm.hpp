@@ -48,6 +48,21 @@ namespace lox
             return obj;
         }
 
+        template<typename T>
+        String* allocate_str(T&& arg)
+        {
+            String* str;
+            if (strings_.get(std::forward<T&>(arg), str))
+            {
+                return str;
+            }
+            else
+            {
+                str = new String(std::forward<T&&>(arg));
+                strings_.add(str, nullptr);
+            }
+        }
+
     private:
         Chunk chunk_;
         byte const* ip_;

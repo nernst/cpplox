@@ -10,7 +10,7 @@ namespace lox
     {
     public:
 
-        static const double max_load = 0.75;
+        static constexpr const double max_load = 0.75;
 
         struct Entry
         {
@@ -81,9 +81,9 @@ namespace lox
         bool add(String const* key, V&& value)
         {
             if (capacity_ + 1 > capacity_ * max_load) {
-                grow_capacity(capacity_);
+                grow_capacity();
             }
-            Entry* entry = find_entry(key);
+            Entry* entry = find_entry(key->view());
             const bool is_new = entry->key == nullptr;
             if (is_new && entry->value.is_nil())
                 ++size_;
@@ -97,7 +97,7 @@ namespace lox
             if (empty())
                 return false;
 
-            Entry const* entry = find_entry(key);
+            Entry const* entry = find_entry(key->str());
             if (entry->key == nullptr)
                 return false;
 
@@ -109,7 +109,7 @@ namespace lox
             if (empty())
                 return false;
 
-            Entry* entry = find_entry(key);
+            Entry* entry = find_entry(key->view());
             if (entry->key == nullptr)
                 return false;
             
@@ -123,29 +123,36 @@ namespace lox
         size_t capacity_;
         std::unique_ptr<Entry[]> entries_;
 
-        Entry const* find_entry(String const* key)  const {
+        Entry const* find_entry(std::string_view key) const
+        {
             return const_cast<Map*>(this)->find_entry(key);
         }
 
-        Entry* find_entry(String const* key) {
-            assert(key);
-
-            size_t index{key->hash() % capacity_};
+        Entry* find_entry(std::string_view key)
+        {
+            const size_t hash{lox::hash(key)};
+            size_t index{hash % capacity_};
             Entry* tombstone{nullptr};
 
-            while (true) {
+            while (true)
+            {
                 Entry* entry = entries_.get() + index;
-                if (entry->key == nullptr) {
-                    if (entry->value.is_nil()) {
+                if (entry->key == nullptr)
+                {
+                    if (entry->value.is_nil())
+                    {
                         return tombstone != nullptr ? tombstone : entry;
                     }
-                    else {
+                    else
+                    {
                         if (tombstone == nullptr)
                             tombstone = entry;
                     }
                 }
-                else if (entry->key == key)
+                else if (entry->key->view() == key)
+                {
                     return entry;
+                }
                 index = (index + 1) % capacity_;
             }
         }

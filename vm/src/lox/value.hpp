@@ -1,9 +1,12 @@
+#pragma once
+
 #include "common.hpp"
 #include "object.hpp"
 #include <cassert>
 #include <type_traits>
 #include <variant>
 #include <vector>
+
 
 namespace lox
 {

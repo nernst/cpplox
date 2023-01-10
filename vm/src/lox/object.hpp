@@ -14,6 +14,35 @@ namespace lox
 
     void print_object(Object const& object);
 
+    template<typename It>
+    constexpr size_t hash(It begin, It end)
+    {
+        constexpr size_t fnv_offset_basis = 14695981039346656037ul;
+        constexpr size_t fnv_prime = 1099511628211ul;
+
+        size_t hash{fnv_offset_basis};
+
+        while (begin != end)
+        {
+            hash ^= *begin++;
+            hash *= fnv_prime;
+        }
+        return hash;
+    }
+
+    inline constexpr size_t hash(std::string_view data)
+    {
+        constexpr std::span<byte> empty{};
+
+        if (data.empty())
+            return hash(std::begin(empty), std::end(empty));
+
+        auto begin_ = reinterpret_cast<byte const*>(&data.front()); 
+        auto end_ = begin_ + data.size();
+
+        return hash(begin_, end_);
+    }
+
     class Object
     {
         friend class VM;
@@ -42,6 +71,8 @@ namespace lox
             return this == &other;
         }
 
+        virtual size_t hash() const = 0;
+
     private:
         // for GC
         Object* next_;
@@ -52,13 +83,13 @@ namespace lox
     public:
         String()
         : data_{}
-        , hash_{hash_str({})}
+        , hash_{lox::hash(std::string_view{})}
         {}
 
         template<class StringType>
-        String(StringType&& value)
+        explicit String(StringType&& value)
         : data_{std::forward<StringType>(value)}
-        , hash_{hash_str(data_)}
+        , hash_{lox::hash(data_)}
         { }
 
         String(String const&) = default;
@@ -74,6 +105,7 @@ namespace lox
         size_t length() const { return data_.length(); }
         const char* c_str() const { return data_.c_str(); }
         std::string const& str() const { return data_; }
+        std::string_view view() const { return data_; }
 
         bool equals(Object const& other) const override {
             if (other.type() != ObjectType::STRING)
@@ -83,19 +115,7 @@ namespace lox
             return str() == other_str.str();
         }
 
-        size_t hash() const { return hash_; }
-
-        static constexpr size_t hash_str(std::string_view data) {
-            const size_t fnv_offset_basis = 14695981039346656037ul;
-            const size_t fnv_prime = 1099511628211ul;
-            size_t hash{fnv_offset_basis};
-
-            for (char c : data) {
-                hash ^= c;
-                hash *= fnv_prime;
-            }
-            return hash;
-        }
+        size_t hash() const override { return hash_; }
 
     private:
         std::string data_;
