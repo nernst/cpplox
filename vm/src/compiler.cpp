@@ -25,8 +25,10 @@ namespace lox
             bool compile()
             {
                 advance();
-                expression();
-                consume(Token::TOKEN_EOF, "Expect end of expression.");
+                while (!match(Token::TOKEN_EOF))
+                {
+                    declaration();
+                }
                 end();
                 return !had_error_;
             }
@@ -122,7 +124,7 @@ namespace lox
             void emit_return() { emit(OpCode::OP_RETURN); }
             void emit(Value value) {
                 const byte id{make_constant(value)};
-                fmt::print("emit: constant - {}", id);
+                // fmt::print("emit: constant - {}\n", id);
                 emit(OpCode::OP_CONSTANT, id); 
             }
 
@@ -147,6 +149,20 @@ namespace lox
                     error_at_current(message);
             }
 
+            bool check(Token::Type type)
+            {
+                return current_.type == type;
+            }
+
+            bool match(Token::Type type)
+            {
+                if (!check(type))
+                    return false;
+                
+                advance();
+                return true;
+            }
+
             void end()
             { 
                 emit_return(); 
@@ -160,7 +176,93 @@ namespace lox
             void expression()
             {
                 parse_precedence(Precedence::ASSIGNMENT);
+            }
 
+            void var_declaration()
+            {
+                byte global = parse_variable("Expect variable name.");
+
+                if (match(Token::EQUAL))
+                {
+                    expression();
+                }
+                else
+                {
+                    emit(OpCode::OP_NIL);
+                }
+                consume(Token::SEMICOLON, "Expect ';' after variable declaration.");
+
+                define_variable(global);
+            }
+
+            void expression_statement()
+            {
+                expression();
+                consume(Token::SEMICOLON, "Expect ';' after expression.");
+                emit(OpCode::OP_POP);
+            }
+
+            void print_statement()
+            {
+                expression();
+                consume(Token::SEMICOLON, "Expect ';' after value.");
+                emit(OpCode::OP_PRINT);
+            }
+
+            void synchronize()
+            {
+                panic_mode_ = false;
+
+                while (current_.type != Token::TOKEN_EOF)
+                {
+                    if (previous_.type == Token::SEMICOLON)
+                        return;
+
+                    switch (current_.type)
+                    {
+                        case Token::CLASS:
+                        case Token::FUN:
+                        case Token::VAR:
+                        case Token::FOR:
+                        case Token::IF:
+                        case Token::WHILE:
+                        case Token::PRINT:
+                        case Token::RETURN:
+                            return;
+                        
+                        default:
+                            ;
+                    }
+
+                    advance();
+                }
+            }
+
+            void declaration()
+            {
+                if (match(Token::VAR))
+                {
+                    var_declaration();
+                }
+                else
+                {
+                    statement();
+                }
+
+                if (panic_mode_)
+                    synchronize();
+            }
+
+            void statement()
+            {
+                if (match(Token::PRINT))
+                {
+                    print_statement();
+                }
+                else
+                {
+                    expression_statement();
+                }
             }
 
             void number()
@@ -177,6 +279,17 @@ namespace lox
                 emit(Value{
                     new String{std::string{previous_.start + 1, previous_.length - 2}}
                 });
+            }
+
+            void named_variable(Token const& name)
+            {
+                byte arg = identifier_constant(name);
+                emit(OpCode::OP_GET_GLOBAL, arg);
+            }
+
+            void variable()
+            {
+                named_variable(previous_);
             }
 
             void grouping()
@@ -233,7 +346,21 @@ namespace lox
                     case Token::TRUE: emit(OpCode::OP_TRUE); break;
                     default: unreachable();
                 }
+            }
 
+            byte identifier_constant(Token const& name)
+            {
+                return make_constant(Value{new String(name.token)});
+            }
+
+            byte parse_variable(const char* error_message)
+            {
+                consume(Token::IDENTIFIER, error_message);
+                return identifier_constant(previous_);
+            }
+
+            void define_variable(byte global) {
+                emit(OpCode::OP_DEFINE_GLOBAL, global);
             }
 
             void parse_precedence(Precedence precedence)
@@ -269,13 +396,15 @@ namespace lox
             ParseRule const* get_rule(Token::Type op)
             {
                 static const std::unordered_map<Token::Type, ParseRule> rules = {
-                    #define RULE(token, prefix, infix, precedence) {Token::token, {prefix, infix, Precedence::precedence }}
+                    #define RULE(token, prefix, infix, precedence) \
+                        {Token::token, {prefix, infix, Precedence::precedence }}
                     RULE(LEFT_PAREN, &Compiler::grouping, nullptr, NONE),
                     RULE(MINUS, &Compiler::unary, &Compiler::binary, TERM),
                     RULE(PLUS, nullptr, &Compiler::binary, TERM),
                     RULE(SLASH, nullptr, &Compiler::binary, FACTOR),
                     RULE(STAR, nullptr, &Compiler::binary, FACTOR),
                     RULE(NUMBER, &Compiler::number, nullptr, NONE),
+                    RULE(IDENTIFIER, &Compiler::variable, nullptr, NONE),
                     RULE(STRING, &Compiler::string, nullptr, NONE),
                     RULE(FALSE, &Compiler::literal, nullptr, NONE),
                     RULE(TRUE, &Compiler::literal, nullptr, NONE),

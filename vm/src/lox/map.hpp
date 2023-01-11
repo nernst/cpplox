@@ -80,7 +80,7 @@ namespace lox
         template<typename V>
         bool add(String const* key, V&& value)
         {
-            if (capacity_ + 1 > capacity_ * max_load) {
+            if (size_ + 1 > capacity_ * max_load) {
                 grow_capacity();
             }
             Entry* entry = find_entry(key->view());
@@ -169,7 +169,12 @@ namespace lox
 
         void grow_capacity() {
             const size_t old_capacity{capacity_};
-            capacity_ = std::min(16ul, old_capacity * 2);
+            capacity_ = std::max(16ul, old_capacity * 2);
+
+            #ifdef DEBUG_TRACE_EXECUTION
+            fmt::print(stderr, "Map::grow_capacity(old capacity={}, new capacity={})\n", old_capacity, capacity_);
+            #endif
+
             size_ = 0;
             std::unique_ptr<Entry[]> old_entries = std::move(entries_);
             entries_.reset(new Entry[capacity_]);

@@ -9,6 +9,7 @@ namespace lox
     struct Token
     {
         enum Type {
+            INVALID,
             LEFT_PAREN,
             RIGHT_PAREN,
             LEFT_BRACE,
@@ -54,6 +55,28 @@ namespace lox
             ERROR,
             TOKEN_EOF,
         };
+
+        Token(size_t line, Type type, const char* start, size_t len, std::string message = std::string())
+        : line{line}
+        , type{type}
+        , start{start}
+        , length{len}
+        , token{start, len}
+        , message{move(message)}
+        {}
+
+        Token()
+        : line{static_cast<size_t>(-1)}
+        , type{INVALID}
+        , start{nullptr}
+        , length{0}
+        {}
+
+        Token(Token const&) = default;
+        Token(Token&&) = default;
+
+        Token& operator=(Token const&) = default;
+        Token& operator=(Token&&) = default;
 
         size_t line;
         Type type;
@@ -119,7 +142,6 @@ namespace lox
                 Token::ERROR,
                 start_, 
                 length,
-                std::string_view{start_, length},
                 fmt::format(format, std::forward<Args>(args)...)
             };
         }
@@ -130,9 +152,7 @@ namespace lox
                 line_,
                 type,
                 start_,
-                length,
-                std::string_view{start_, length},
-                {}
+                length
             };
         }
 

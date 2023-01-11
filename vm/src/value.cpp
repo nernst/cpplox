@@ -37,7 +37,8 @@ namespace lox
                 switch(v->type())
                 {
                     case ObjectType::STRING:
-                        return static_cast<String const*>(v)->str() == static_cast<String const*>(other_obj)->str();
+                        return v == other_obj;
+                        //return static_cast<String const*>(v)->str() == static_cast<String const*>(other_obj)->str();
                     default:
                         unreachable();
                         return false;
@@ -66,7 +67,15 @@ namespace lox
             }
             else if constexpr(std::is_same_v<T, Object*>)
             {
-                fmt::print("<Object @{}>", static_cast<void*>(v));
+                String* s = dynamic_cast<String*>(v);
+                if (s)
+                {
+                    fmt::print("{}", s->view());
+                }
+                else
+                {
+                    fmt::print("<Object @{}>", static_cast<void*>(v));
+                }
             }
             else
                 static_assert(always_false_v<T>, "non-exhaustive visitor!");

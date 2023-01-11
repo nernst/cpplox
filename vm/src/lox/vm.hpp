@@ -71,6 +71,7 @@ namespace lox
         std::vector<Value> stack_;
         Object* objects_;
         Map strings_;
+        Map globals_;
 
         void free_objects() {
             Object* object = objects_;
@@ -113,13 +114,23 @@ namespace lox
             return chunk_.constants()[offset]; 
         }
 
+        String* read_string()
+        {
+            auto value = read_constant();
+            return dynamic_cast<String*>(value.get<Object*>());
+        }
+
         template<typename... Args>
-        constexpr void runtime_error(fmt::format_string<Args...> format, Args... args)
+        void runtime_error(fmt::format_string<Args...>&& format, Args&&... args)
         {
             size_t instruction = pc() - 1;
             size_t line = chunk_.lines()[instruction];
 
-            fmt::print(stderr, format, args...);
+            fmt::print(
+                stderr,
+                std::forward<decltype(format)>(format),
+                std::forward<Args>(args)...
+            );
             fmt::print(stderr, "\n[line {}] in script\n", line);
         }
     };

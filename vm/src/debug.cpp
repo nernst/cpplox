@@ -66,6 +66,15 @@ namespace lox
             case OpCode::OP_FALSE:
                 return simple(chunk, "OP_FALSE", offset);
 
+            case OpCode::OP_POP:
+                return simple(chunk, "OP_POP", offset);
+
+            case OpCode::OP_GET_GLOBAL:
+                return constant(chunk, "OP_GET_GLOBAL", offset);
+
+            case OpCode::OP_DEFINE_GLOBAL:
+                return constant(chunk, "OP_DEFINE_GLOBAL", offset);
+
             case OpCode::OP_EQUAL:
                 return simple(chunk, "OP_EQUAL", offset);
 
@@ -92,6 +101,9 @@ namespace lox
 
             case OpCode::OP_NEGATE:
                 return simple(chunk, "OP_NEGATE", offset);
+
+            case OpCode::OP_PRINT:
+                return simple(chunk, "OP_PRINT", offset);
 
             case OpCode::OP_RETURN:
                 return simple(chunk, "OP_RETURN", offset);

@@ -63,9 +63,35 @@ namespace lox
                 case OpCode::OP_NIL: push(Value()); break;
                 case OpCode::OP_TRUE: push(Value(true)); break;
                 case OpCode::OP_FALSE: push(Value(false)); break;
+                case OpCode::OP_POP: pop(); break;
+
+                case OpCode::OP_GET_GLOBAL:
+                {
+                    auto name = read_string();
+                    Value value;
+                    if (!globals_.get(name, value))
+                    {
+                        runtime_error("Undefined variable '{}'.", name->view());
+                        return Result::RUNTIME_ERROR;
+                    }
+                    push(value);
+                    break;
+                }
+
+                case OpCode::OP_DEFINE_GLOBAL:
+                {
+                    auto name = read_string();
+                    globals_.add(name, peek(0));
+                    pop();
+                    break;
+                }
 
                 case OpCode::OP_ADD:
                     {
+                        #ifdef DEBUG_TRACE_EXECUTION
+                        fmt::print(stderr, "** OP_ADD - begin\n");
+                        #endif
+
                         if (peek(0).is_string() && peek(1).is_string())
                         {
                             Value v_lhs{pop()};
@@ -74,6 +100,10 @@ namespace lox
                             String* rhs = dynamic_cast<String*>(v_rhs.get<Object*>());
                             assert(lhs && "Expected String*!");
                             assert(rhs && "Expected String*!");
+
+                            #ifdef DEBUG_TRACE_EXECUTION
+                            fmt::print(stderr, "** OP_ADD, lhs=[{}], rhs=[{}]\n", lhs->str(), rhs->str());
+                            #endif
 
                             push(Value(allocate<String>(lhs->str() + rhs->str())));
                         }
@@ -88,6 +118,10 @@ namespace lox
                             runtime_error("Operands must be two numbers or two strings.");
                             return Result::RUNTIME_ERROR;
                         }
+
+                        #ifdef DEBUG_TRACE_EXECUTION
+                        fmt::print(stderr, "** OP_ADD end\n");
+                        #endif
 
                     }
                     break;
@@ -109,9 +143,12 @@ namespace lox
                     push(Value(-pop().get<double>()));
                     break;
 
-                case OpCode::OP_RETURN:
+                case OpCode::OP_PRINT:
                     print_value(pop());
                     fmt::print("\n");
+                    break;
+
+                case OpCode::OP_RETURN:
                     return Result::OK;
             }
         }
