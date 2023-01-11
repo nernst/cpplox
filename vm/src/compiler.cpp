@@ -265,8 +265,10 @@ namespace lox
                 }
             }
 
-            void number()
+            void number(bool can_assign)
             {
+                ignore(can_assign);
+
                 std::stringstream ss{std::string(previous_.token)};
                 double d;
                 ss >> d;
@@ -274,32 +276,46 @@ namespace lox
                 emit(Value{d});
             }
 
-            void string()
+            void string(bool can_assign)
             {
+                ignore(can_assign);
+
                 emit(Value{
                     new String{std::string{previous_.start + 1, previous_.length - 2}}
                 });
             }
 
-            void named_variable(Token const& name)
+            void named_variable(Token const& name, bool can_assign)
             {
                 byte arg = identifier_constant(name);
-                emit(OpCode::OP_GET_GLOBAL, arg);
+                if (can_assign && match(Token::EQUAL))
+                {
+                    expression();
+                    emit(OpCode::OP_SET_GLOBAL, arg);
+                }
+                else
+                {
+                    emit(OpCode::OP_GET_GLOBAL, arg);
+                }
             }
 
-            void variable()
+            void variable(bool can_assign)
             {
-                named_variable(previous_);
+                named_variable(previous_, can_assign);
             }
 
-            void grouping()
+            void grouping(bool can_assign)
             {
+                ignore(can_assign);
+
                 expression();
                 consume(Token::RIGHT_PAREN, "Expect ')' after expression.");
             }
 
-            void unary()
+            void unary(bool can_assign)
             {
+                ignore(can_assign);
+
                 Token::Type op{previous_.type};
 
                 parse_precedence(Precedence::UNARY);
@@ -312,8 +328,10 @@ namespace lox
                 }
             }
 
-            void binary()
+            void binary(bool can_assign)
             {
+                ignore(can_assign);
+
                 Token::Type op{previous_.type};
                 ParseRule const* rule = get_rule(op);
                 assert(rule != nullptr);
@@ -337,8 +355,10 @@ namespace lox
                 }
             }
 
-            void literal()
+            void literal(bool can_assign)
             {
+                ignore(can_assign);
+
                 switch(previous_.type)
                 {
                     case Token::FALSE: emit(OpCode::OP_FALSE); break;
@@ -374,20 +394,24 @@ namespace lox
                     return;
                 }
 
-                (this->*prefix)();
+                bool can_assign = precedence <= Precedence::ASSIGNMENT;
+                (this->*prefix)(can_assign);
 
                 while (precedence <= get_rule(current_.type)->precedence)
                 {
                     advance();
 
                     ParseRule::Func infix = get_rule(previous_.type)->infix;
-                    (this->*infix)();
+                    (this->*infix)(can_assign);
                 }
+
+                if (can_assign && match(Token::EQUAL))
+                    error("Invalid assignment target.");
             }
 
             struct ParseRule
             {
-                using Func = void(Compiler::*)();
+                using Func = void(Compiler::*)(bool);
                 Func prefix;
                 Func infix;
                 Precedence precedence;

@@ -75,6 +75,9 @@ namespace lox
             case OpCode::OP_DEFINE_GLOBAL:
                 return constant(chunk, "OP_DEFINE_GLOBAL", offset);
 
+            case OpCode::OP_SET_GLOBAL:
+                return constant(chunk, "OP_SET_GLOBAL", offset);
+
             case OpCode::OP_EQUAL:
                 return simple(chunk, "OP_EQUAL", offset);
 

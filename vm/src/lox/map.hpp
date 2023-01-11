@@ -115,6 +115,7 @@ namespace lox
             
             entry->key = nullptr;
             entry->value = Value{true};
+            return true;
         }
 
 

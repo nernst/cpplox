@@ -86,6 +86,18 @@ namespace lox
                     break;
                 }
 
+                case OpCode::OP_SET_GLOBAL:
+                {
+                    auto name = read_string();
+                    if (globals_.add(name, peek(0)))
+                    {
+                        globals_.remove(name);
+                        runtime_error("Undefined variable '{}'.", name->view());
+                        return Result::RUNTIME_ERROR;
+                    }
+                    break;
+                }
+
                 case OpCode::OP_ADD:
                     {
                         #ifdef DEBUG_TRACE_EXECUTION
