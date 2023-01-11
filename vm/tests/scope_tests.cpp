@@ -1,31 +1,6 @@
-#include "lox/vm.hpp"
 #include <string>
 #include <boost/test/unit_test.hpp>
-
-using namespace std::literals::string_literals;
-
-namespace lox {
-    std::ostream& operator<<(std::ostream& os, lox::VM::Result res)
-    {
-        switch(res)
-        {
-            case lox::VM::Result::OK: os << "OK"; break;
-            case lox::VM::Result::RUNTIME_ERROR: os << "RUNTIME_ERROR"; break;
-            case lox::VM::Result::COMPILE_ERROR: os << "COMPILER_ERROR"; break;
-            default: os << "!!INVALID Result value: " << static_cast<size_t>(res) << "!!"; break;
-        }
-        return os;
-    }
-}
-
-std::tuple<lox::VM::Result, std::string, std::string> run_test(std::string const& source)
-{
-    std::stringstream out, err;
-    lox::VM vm{out, err};
-    auto result = vm.interpret(source);
-
-    return std::make_tuple(result, out.str(), err.str());
-}
+#include "test_utils.hpp"
 
 BOOST_AUTO_TEST_CASE(variable_shadowing)
 {
@@ -44,5 +19,7 @@ print a;
 
     BOOST_TEST(result == lox::VM::Result::OK);
     BOOST_TEST(out == expected);
-    // BOOST_TEST(err == ""s);
+#if !defined(DEBUG_COMPILE) && !defined(DEBUG_PRINT_CODE) && !defined(DEBUG_TRACE_EXECUTION)
+    BOOST_TEST(err == ""s);
+#endif
 }
