@@ -8,6 +8,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 
 namespace lox
 {
@@ -22,8 +23,9 @@ namespace lox
             };
 
         public:
-            Compiler(std::string const& source)
+            Compiler(std::string const& source, std::ostream& stderr)
             : source_{&source}
+            , stderr_{stderr}
             , scanner_{source}
             , had_error_{false}
             , panic_mode_{false}
@@ -45,6 +47,7 @@ namespace lox
 
         private:
             std::string const* source_;
+            std::ostream& stderr_;
             Scanner scanner_;
             Chunk chunk_;
             Token current_;
@@ -96,9 +99,9 @@ namespace lox
                 const auto line = source.substr(line_start, line_end - line_start);
                 const auto line_pos = token_start - line_start;
                 std::string padding(6 + line_pos, ' ');
-                // fmt::print(stderr, "line_start: {}, line_end: {}, line_pos: {}\nline: {}\n", line_start, line_end, line_pos, line);
-                fmt::print(stderr, "{:4}: {}\n", token.line, line);
-                fmt::print(stderr, "{}^\n", padding);
+                // fmt::print(stderr_, "line_start: {}, line_end: {}, line_pos: {}\nline: {}\n", line_start, line_end, line_pos, line);
+                fmt::print(stderr_, "{:4}: {}\n", token.line, line);
+                fmt::print(stderr_, "{}^\n", padding);
             }
 
             void error_at(Token const& token, std::string const& message)
@@ -110,16 +113,16 @@ namespace lox
                 had_error_ = true;
                 print_error_location(token);
 
-                fmt::print(stderr, "Error", token.line);
+                fmt::print(stderr_, "Error", token.line);
 
                 if (token.type == Token::TOKEN_EOF) {
-                    fmt::print(stderr, " at end");
+                    fmt::print(stderr_, " at end");
                 }
                 else if (token.type != Token::ERROR) {
-                    fmt::print(stderr, " at '{}'", token.token);
+                    fmt::print(stderr_, " at '{}'", token.token);
                 }
 
-                fmt::print(stderr, ": {}\n", message);
+                fmt::print(stderr_, ": {}\n", message);
             }
 
             byte make_constant(Value value)
@@ -184,7 +187,7 @@ namespace lox
 
 #ifdef DEBUG_PRINT_CODE
                 if (!had_error_)
-                    disassemble(chunk_, "code");
+                    disassemble(stderr_, chunk_, "code");
 #endif
             }
 
@@ -342,6 +345,7 @@ namespace lox
                 }
                 else
                 {
+                    arg = identifier_constant(name);
                     get_op = OpCode::OP_GET_GLOBAL;
                     set_op = OpCode::OP_SET_GLOBAL;
                 }
@@ -349,11 +353,11 @@ namespace lox
                 if (can_assign && match(Token::EQUAL))
                 {
                     expression();
-                    emit(set_op, static_cast<byte>(arg & 0xff));
+                    emit(set_op, static_cast<byte>(arg));
                 }
                 else
                 {
-                    emit(get_op, static_cast<byte>(arg & 0xff));
+                    emit(get_op, static_cast<byte>(arg));
                 }
             }
 
@@ -584,9 +588,9 @@ namespace lox
         };
 
     }
-    bool compile(std::string const& source, Chunk& chunk)
+    bool compile(std::string const& source, Chunk& chunk, std::ostream& stderr)
     {
-        Compiler compiler{source};
+        Compiler compiler{source, stderr};
         bool success = compiler.compile();
         if (success)
             chunk = std::move(compiler.chunk());

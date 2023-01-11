@@ -10,7 +10,7 @@ namespace lox
     VM::Result VM::interpret(std::string const& source)
     {
         Chunk chunk;
-        if (!compile(source, chunk))
+        if (!compile(source, chunk, stderr()))
             return Result::COMPILE_ERROR;
 
         chunk_ = std::move(chunk);
@@ -39,16 +39,16 @@ namespace lox
         while (true)
         {
 #ifdef DEBUG_TRACE_EXECUTION
-            fmt::print("PC: {}\n", pc());
-            fmt::print("Stack: ");
+            fmt::print(stderr(), "PC: {}\n", pc());
+            stderr() << "Stack: ";
             for (auto const& value : stack_)
             {
-                fmt::print("[ ");
-                print_value(value);
-                fmt::print(" ]");
+                stderr() << "[ ";
+                print_value(stderr(), value);
+                stderr() << " ]";
             }
-            fmt::print("\n");
-            disassemble(chunk_, static_cast<size_t>(ip_ - chunk_.code().data()));
+            stderr() << "\n";
+            disassemble(stderr(), chunk_, static_cast<size_t>(ip_ - chunk_.code().data()));
 #endif
             auto instruction = read_instruction();
             switch (instruction)
@@ -115,7 +115,7 @@ namespace lox
                 case OpCode::OP_ADD:
                     {
                         #ifdef DEBUG_TRACE_EXECUTION
-                        fmt::print(stderr, "** OP_ADD - begin\n");
+                        // fmt::print(stderr(), "** OP_ADD - begin\n");
                         #endif
 
                         if (peek(0).is_string() && peek(1).is_string())
@@ -128,7 +128,7 @@ namespace lox
                             assert(rhs && "Expected String*!");
 
                             #ifdef DEBUG_TRACE_EXECUTION
-                            fmt::print(stderr, "** OP_ADD, lhs=[{}], rhs=[{}]\n", lhs->str(), rhs->str());
+                            // fmt::print(stderr(), "** OP_ADD, lhs=[{}], rhs=[{}]\n", lhs->str(), rhs->str());
                             #endif
 
                             push(Value(allocate<String>(lhs->str() + rhs->str())));
@@ -146,7 +146,7 @@ namespace lox
                         }
 
                         #ifdef DEBUG_TRACE_EXECUTION
-                        fmt::print(stderr, "** OP_ADD end\n");
+                        // fmt::print(stderr(), "** OP_ADD end\n");
                         #endif
 
                     }
@@ -170,8 +170,8 @@ namespace lox
                     break;
 
                 case OpCode::OP_PRINT:
-                    print_value(pop());
-                    fmt::print("\n");
+                    print_value(stdout(), pop());
+                    stdout() << "\n";
                     break;
 
                 case OpCode::OP_RETURN:

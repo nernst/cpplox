@@ -1,6 +1,8 @@
 #include "lox/value.hpp"
 #include "lox/object.hpp"
 #include <fmt/format.h>
+#include <fmt/ostream.h>
+#include <iostream>
 
 namespace lox
 {
@@ -50,35 +52,42 @@ namespace lox
         }, value_);
     }
 
-    void print_value(Value value) {
-        value.apply([](auto&& v) -> void {
+    void print_value(std::ostream& stream, Value const& value)
+    {
+        value.apply([&stream](auto&& v) -> void
+        {
             using T = std::decay_t<decltype(v)>;
 
             if constexpr(std::is_same_v<T, double>)
-                fmt::print("{:g}", v);
+                fmt::print(stream, "{:g}", v);
             else if constexpr(std::is_same_v<T, nullptr_t>)
-                fmt::print("nil");
+                stream << "nil";
             else if constexpr(std::is_same_v<T, bool>)
             {
                 if (v)
-                    fmt::print("true");
+                    stream << "true";
                 else
-                    fmt::print("false");
+                    stream << "false";
             }
             else if constexpr(std::is_same_v<T, Object*>)
             {
                 String* s = dynamic_cast<String*>(v);
                 if (s)
                 {
-                    fmt::print("{}", s->view());
+                    stream << s->view();
                 }
                 else
                 {
-                    fmt::print("<Object @{}>", static_cast<void*>(v));
+                    fmt::print(stream, "<Object @{}>", static_cast<void*>(v));
                 }
             }
             else
                 static_assert(always_false_v<T>, "non-exhaustive visitor!");
         });
+    }
+
+    void print_value(Value const& value)
+    {
+        print_value(std::cout, value);
     }
 }

@@ -1,131 +1,132 @@
 #include "lox/debug.hpp"
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 
 namespace lox 
 {
     namespace
     {
-        size_t simple(Chunk const& chunk, std::string_view name, size_t offset)
+        size_t simple(std::ostream& stream, Chunk const& chunk, std::string_view name, size_t offset)
         {
             ignore(chunk);
 
-            fmt::print("{}\n", name);
+            fmt::print(stream, "{}\n", name);
             return offset + 1;
         }
 
-        size_t constant(Chunk const& chunk, std::string_view name, size_t offset)
+        size_t constant(std::ostream& stream, Chunk const& chunk, std::string_view name, size_t offset)
         {
             byte constant = chunk.code()[offset + 1];
-            fmt::print("{:<16} {:4} '", name, constant);
-            print_value(chunk.constants()[constant]);
-            fmt::print("'\n");
+            fmt::print(stream, "{:<16} {:4} '", name, constant);
+            print_value(stream, chunk.constants()[constant]);
+            fmt::print(stream, "'\n");
             return offset + 2;
         }
 
-        size_t byte_instruction(Chunk const& chunk, std::string_view name, size_t offset)
+        size_t byte_instruction(std::ostream& stream, Chunk const& chunk, std::string_view name, size_t offset)
         {
             byte slot = chunk.code()[offset + 1];
-            fmt::print("{:<16} {:4}\n", name, slot);
+            fmt::print(stream, "{:<16} {:4}\n", name, slot);
             return offset + 2;
         }
     }
 
-    void disassemble(Chunk const& chunk, std::string_view name)
+    void disassemble(std::ostream& stream, Chunk const& chunk, std::string_view name)
     {
-        fmt::print("== {} ==\n", name);
+        fmt::print(stream, "== {} ==\n", name);
 
         for (size_t offset = 0; offset < chunk.code().size(); )
         {
-            offset = disassemble(chunk, offset);
+            offset = disassemble(stream, chunk, offset);
         }
 
-        fmt::print("== {} - {} constants==\n", name, chunk.constants().size());
+        fmt::print(stream, "== {} - {} constants==\n", name, chunk.constants().size());
         for (size_t offset = 0; offset < chunk.constants().size(); ++offset)
         {
-            fmt::print("{:3}: [", offset);
-            print_value(chunk.constants()[offset]);
-            fmt::print("]\n");
+            fmt::print(stream, "{:3}: [", offset);
+            print_value(stream, chunk.constants()[offset]);
+            fmt::print(stream, "]\n");
         }
     }
 
-    size_t disassemble(Chunk const& chunk, size_t offset)
+    size_t disassemble(std::ostream& stream, Chunk const& chunk, size_t offset)
     {
-        fmt::print("{:04} ", offset);
+        fmt::print(stream, "{:04} ", offset);
 
         if (offset && chunk.lines()[offset] == chunk.lines()[offset - 1])
-            fmt::print("   | ");
+            fmt::print(stream, "   | ");
         else
-            fmt::print("{:4} " , chunk.lines()[offset]);
+            fmt::print(stream, "{:4} " , chunk.lines()[offset]);
 
         byte instruction{chunk.code()[offset]};
 
         switch (static_cast<OpCode>(instruction))
         {
             case OpCode::OP_CONSTANT:
-                return constant(chunk, "OP_CONSTANT", offset);
+                return constant(stream, chunk, "OP_CONSTANT", offset);
 
             case OpCode::OP_NIL:
-                return simple(chunk, "OP_NIL", offset);
+                return simple(stream, chunk, "OP_NIL", offset);
             
             case OpCode::OP_TRUE:
-                return simple(chunk, "OP_TRUE", offset);
+                return simple(stream, chunk, "OP_TRUE", offset);
             
             case OpCode::OP_FALSE:
-                return simple(chunk, "OP_FALSE", offset);
+                return simple(stream, chunk, "OP_FALSE", offset);
 
             case OpCode::OP_POP:
-                return simple(chunk, "OP_POP", offset);
+                return simple(stream, chunk, "OP_POP", offset);
 
             case OpCode::OP_GET_LOCAL:
-                return byte_instruction(chunk, "OP_GET_LOCAL", offset);
+                return byte_instruction(stream, chunk, "OP_GET_LOCAL", offset);
 
             case OpCode::OP_SET_LOCAL:
-                return byte_instruction(chunk, "OP_SET_LOCAL", offset);
+                return byte_instruction(stream, chunk, "OP_SET_LOCAL", offset);
 
             case OpCode::OP_GET_GLOBAL:
-                return constant(chunk, "OP_GET_GLOBAL", offset);
+                return constant(stream, chunk, "OP_GET_GLOBAL", offset);
 
             case OpCode::OP_DEFINE_GLOBAL:
-                return constant(chunk, "OP_DEFINE_GLOBAL", offset);
+                return constant(stream, chunk, "OP_DEFINE_GLOBAL", offset);
 
             case OpCode::OP_SET_GLOBAL:
-                return constant(chunk, "OP_SET_GLOBAL", offset);
+                return constant(stream, chunk, "OP_SET_GLOBAL", offset);
 
             case OpCode::OP_EQUAL:
-                return simple(chunk, "OP_EQUAL", offset);
+                return simple(stream, chunk, "OP_EQUAL", offset);
 
             case OpCode::OP_GREATER:
-                return simple(chunk, "OP_GREATER", offset);
+                return simple(stream, chunk, "OP_GREATER", offset);
 
             case OpCode::OP_LESS:
-                return simple(chunk, "OP_LESS", offset);
+                return simple(stream, chunk, "OP_LESS", offset);
 
             case OpCode::OP_ADD:
-                return simple(chunk, "OP_ADD", offset);
+                return simple(stream, chunk, "OP_ADD", offset);
 
             case OpCode::OP_SUBTRACT:
-                return simple(chunk, "OP_SUBTRACT", offset);
+                return simple(stream, chunk, "OP_SUBTRACT", offset);
 
             case OpCode::OP_MULTIPLY:
-                return simple(chunk, "OP_MULTIPLE", offset);
+                return simple(stream, chunk, "OP_MULTIPLE", offset);
 
             case OpCode::OP_DIVIDE:
-                return simple(chunk, "OP_DIVIDE", offset);
+                return simple(stream, chunk, "OP_DIVIDE", offset);
 
             case OpCode::OP_NOT:
-                return simple(chunk, "OP_NOT", offset);
+                return simple(stream, chunk, "OP_NOT", offset);
 
             case OpCode::OP_NEGATE:
-                return simple(chunk, "OP_NEGATE", offset);
+                return simple(stream, chunk, "OP_NEGATE", offset);
 
             case OpCode::OP_PRINT:
-                return simple(chunk, "OP_PRINT", offset);
+                return simple(stream, chunk, "OP_PRINT", offset);
 
             case OpCode::OP_RETURN:
-                return simple(chunk, "OP_RETURN", offset);
+                return simple(stream, chunk, "OP_RETURN", offset);
             
             default:
-                fmt::print("Unknown op code: {}\n", instruction);
+                fmt::print(stream, "Unknown op code: {}\n", instruction);
                 return offset + 1;
         }
     }

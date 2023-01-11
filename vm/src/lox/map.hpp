@@ -171,11 +171,6 @@ namespace lox
         void grow_capacity() {
             const size_t old_capacity{capacity_};
             capacity_ = std::max(16ul, old_capacity * 2);
-
-            #ifdef DEBUG_TRACE_EXECUTION
-            fmt::print(stderr, "Map::grow_capacity(old capacity={}, new capacity={})\n", old_capacity, capacity_);
-            #endif
-
             size_ = 0;
             std::unique_ptr<Entry[]> old_entries = std::move(entries_);
             entries_.reset(new Entry[capacity_]);

@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <variant>
 #include <vector>
+#include <iosfwd>
 
 
 namespace lox
@@ -122,7 +123,8 @@ namespace lox
         value_t value_;
     };
 
-    void print_value(Value value);
+    void print_value(Value const& value);
+    void print_value(std::ostream& stream, Value const& value);
 
     class ValueArray
     {

@@ -5,6 +5,8 @@
 #include <cassert>
 #include <string>
 #include <fmt/format.h>
+#include <fmt/ostream.h>
+#include <iostream>
 
 namespace lox
 {
@@ -17,12 +19,17 @@ namespace lox
             RUNTIME_ERROR,
         };
 
-        VM() = default;
+        VM(std::ostream& stdout = std::cout, std::ostream& stderr = std::cerr)
+        : stdout_{&stdout}
+        , stderr_{&stderr}
+        { }
 
-        VM(Chunk&& chunk)
+        VM(Chunk&& chunk, std::ostream& stdout = std::cout, std::ostream& stderr = std::cerr)
         : chunk_(std::move(chunk))
         , ip_{nullptr}
         , objects_{nullptr}
+        , stdout_{&stdout}
+        , stderr_{&stderr}
         { }
 
         VM(VM const&) = delete;
@@ -38,6 +45,12 @@ namespace lox
 
         Result interpret(std::string const& source);
         Result interpret();
+
+        std::ostream& stdout() const { return *stdout_; }
+        void stdout(std::ostream& stdout) { stdout_ = &stdout; }
+
+        std::ostream& stderr() const { return *stderr_; }
+        void stderr(std::ostream& stderr) { stderr_ = &stderr; }
 
         template<typename ObjectType, typename... Args>
         ObjectType* allocate(Args&&... args)
@@ -65,13 +78,15 @@ namespace lox
 
     private:
         Chunk chunk_;
-        byte const* ip_;
-        byte const* ip_start_;
-        byte const* ip_end_;
+        byte const* ip_ = nullptr;
+        byte const* ip_start_ = nullptr;
+        byte const* ip_end_ = nullptr;
         std::vector<Value> stack_;
-        Object* objects_;
+        Object* objects_ = nullptr;
         Map strings_;
         Map globals_;
+        std::ostream* stdout_ = &std::cout;
+        std::ostream* stderr_ = &std::cerr;
 
         void free_objects() {
             Object* object = objects_;
@@ -126,12 +141,11 @@ namespace lox
             size_t instruction = pc() - 1;
             size_t line = chunk_.lines()[instruction];
 
-            fmt::print(
-                stderr,
+            stderr() << fmt::format(
                 std::forward<decltype(format)>(format),
                 std::forward<Args>(args)...
             );
-            fmt::print(stderr, "\n[line {}] in script\n", line);
+            fmt::print(*stderr_, "\n[line {}] in script\n", line);
         }
     };
 }

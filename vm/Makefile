@@ -105,7 +105,8 @@ PROG_DEBUG := $(DEB_DIR)/$(PROGRAM)
 
 OBJFILES_REL := $(patsubst $(SOURCE_DIR)/%.cpp,$(REL_OBJ_DIR)/%.o,$(SOURCES))
 OBJFILES_DBG := $(patsubst $(SOURCE_DIR)/%.cpp,$(DBG_OBJ_DIR)/%.o,$(SOURCES))
-OBJFILES_TST := $(patsubst $(TEST_SOURCE_DIR)/%.cpp,$(TST_OBJ_DIR)/%.o,$(TEST_SOURCES)) $(DBG_OBJ_DIR)/format.o $(DBG_OBJ_DIR)/scanner.o
+OBJFILES_DBG_MAIN := $(DBG_OBJ_DIR)/lox.o
+OBJFILES_TST := $(patsubst $(TEST_SOURCE_DIR)/%.cpp,$(TST_OBJ_DIR)/%.o,$(TEST_SOURCES)) $(filter-out $(OBJFILES_DBG_MAIN),$(OBJFILES_DBG))
 
 DEPFILES_REL := $(patsubst $(SOURCE_DIR)/%.cpp,$(REL_OBJ_DIR)/%.d,$(SOURCES))
 DEPFILES_DBG := $(patsubst $(SOURCE_DIR)/%.cpp,$(DBG_OBJ_DIR)/%.d,$(SOURCES))
