@@ -65,6 +65,20 @@ namespace lox
                 case OpCode::OP_FALSE: push(Value(false)); break;
                 case OpCode::OP_POP: pop(); break;
 
+                case OpCode::OP_GET_LOCAL:
+                {
+                    byte slot = read_byte();
+                    push(stack_[slot]);
+                    break;
+                }
+
+                case OpCode::OP_SET_LOCAL:
+                {
+                    byte slot = read_byte();
+                    stack_[slot] = peek(0);
+                    break;
+                }
+
                 case OpCode::OP_GET_GLOBAL:
                 {
                     auto name = read_string();

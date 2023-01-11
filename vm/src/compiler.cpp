@@ -3,6 +3,7 @@
 #include "lox/debug.hpp"
 #endif
 #include "lox/scanner.hpp"
+#include <array>
 #include <iterator>
 #include <sstream>
 #include <unordered_map>
@@ -14,12 +15,20 @@ namespace lox
     {
         class Compiler
         {
+            struct Local
+            {
+                Token name;
+                int depth;
+            };
+
         public:
             Compiler(std::string const& source)
             : source_{&source}
             , scanner_{source}
             , had_error_{false}
             , panic_mode_{false}
+            , local_count_{0}
+            , scope_depth_{0}
             {}
 
             bool compile()
@@ -42,6 +51,12 @@ namespace lox
             Token previous_;
             bool had_error_;
             bool panic_mode_;
+
+            static constexpr size_t max_locals = static_cast<size_t>(std::numeric_limits<byte>::max()) + 1;
+
+            std::array<Local, max_locals> locals_;
+            int local_count_;
+            int scope_depth_;
 
             enum class Precedence {
                 NONE,
@@ -173,9 +188,34 @@ namespace lox
 #endif
             }
 
+            void begin_scope()
+            {
+                ++scope_depth_;
+            }
+
+            void end_scope()
+            {
+                --scope_depth_;
+
+                while (local_count_ > 0 && locals_[local_count_ - 1].depth > scope_depth_)
+                {
+                    emit(OpCode::OP_POP);
+                    --local_count_;
+                }
+            }
+
             void expression()
             {
                 parse_precedence(Precedence::ASSIGNMENT);
+            }
+
+            void block()
+            {
+                while (!check(Token::RIGHT_BRACE) && !check(Token::TOKEN_EOF))
+                {
+                    declaration();
+                }
+                consume(Token::RIGHT_BRACE, "Expect '}' after block.");
             }
 
             void var_declaration()
@@ -244,6 +284,12 @@ namespace lox
                 {
                     var_declaration();
                 }
+                else if (match(Token::LEFT_BRACE))
+                {
+                    begin_scope();
+                    block();
+                    end_scope();
+                }
                 else
                 {
                     statement();
@@ -287,15 +333,27 @@ namespace lox
 
             void named_variable(Token const& name, bool can_assign)
             {
-                byte arg = identifier_constant(name);
-                if (can_assign && match(Token::EQUAL))
+                OpCode get_op, set_op;
+                int arg = resolve_local(name);
+                if (arg != -1)
                 {
-                    expression();
-                    emit(OpCode::OP_SET_GLOBAL, arg);
+                    get_op = OpCode::OP_GET_LOCAL;
+                    set_op = OpCode::OP_SET_LOCAL;
                 }
                 else
                 {
-                    emit(OpCode::OP_GET_GLOBAL, arg);
+                    get_op = OpCode::OP_GET_GLOBAL;
+                    set_op = OpCode::OP_SET_GLOBAL;
+                }
+
+                if (can_assign && match(Token::EQUAL))
+                {
+                    expression();
+                    emit(set_op, static_cast<byte>(arg & 0xff));
+                }
+                else
+                {
+                    emit(get_op, static_cast<byte>(arg & 0xff));
                 }
             }
 
@@ -373,13 +431,85 @@ namespace lox
                 return make_constant(Value{new String(name.token)});
             }
 
+            static bool identifiers_equal(Token const& lhs, Token const& rhs)
+            {
+                return lhs.token == rhs.token;
+            }
+
+            int resolve_local(Token const& name)
+            {
+                for (int i = local_count_ - 1; i >= 0; --i)
+                {
+                    if (identifiers_equal(name, locals_[i].name))
+                    {
+                        if (locals_[i].depth == -1)
+                        {
+                            error("Cannot read local variable in its own initializer.");
+                        }
+                        return i;
+                    }
+                }
+
+                return -1;
+            }
+
+            void add_local(Token const& name)
+            {
+                if (local_count_ == max_locals)
+                {
+                    error("Too many local variables in function.");
+                    return;
+                }
+
+                Local& local = locals_[local_count_++];
+                local.name = name;
+                local.depth = -1;
+            }
+
+            void declare_variable()
+            {
+                if (scope_depth_ == 0)
+                    return;
+                
+                Token name{previous_};
+                for (int i = local_count_ - 1; i >= 0; --i)
+                {
+                    auto& local = locals_[i];
+                    if (local.depth != -1 && local.depth < scope_depth_)
+                        break;
+
+                    if (identifiers_equal(local.name, name))
+                    {
+                        error("Already a variable with this name in this scope.");
+                    }
+                }
+
+                add_local(std::move(name));
+            }
+
             byte parse_variable(const char* error_message)
             {
                 consume(Token::IDENTIFIER, error_message);
+                declare_variable();
+                if (scope_depth_ > 0)
+                    return 0;
+
                 return identifier_constant(previous_);
             }
 
-            void define_variable(byte global) {
+            void mark_initialized()
+            {
+                locals_[local_count_ - 1].depth = scope_depth_;
+            }
+
+            void define_variable(byte global)
+            {
+                if (scope_depth_ > 0)
+                {
+                    mark_initialized();
+                    return;
+                }
+
                 emit(OpCode::OP_DEFINE_GLOBAL, global);
             }
 

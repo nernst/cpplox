@@ -21,6 +21,13 @@ namespace lox
             fmt::print("'\n");
             return offset + 2;
         }
+
+        size_t byte_instruction(Chunk const& chunk, std::string_view name, size_t offset)
+        {
+            byte slot = chunk.code()[offset + 1];
+            fmt::print("{:<16} {:4}\n", name, slot);
+            return offset + 2;
+        }
     }
 
     void disassemble(Chunk const& chunk, std::string_view name)
@@ -68,6 +75,12 @@ namespace lox
 
             case OpCode::OP_POP:
                 return simple(chunk, "OP_POP", offset);
+
+            case OpCode::OP_GET_LOCAL:
+                return byte_instruction(chunk, "OP_GET_LOCAL", offset);
+
+            case OpCode::OP_SET_LOCAL:
+                return byte_instruction(chunk, "OP_SET_LOCAL", offset);
 
             case OpCode::OP_GET_GLOBAL:
                 return constant(chunk, "OP_GET_GLOBAL", offset);
