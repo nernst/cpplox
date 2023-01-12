@@ -29,6 +29,14 @@ namespace lox
             fmt::print(stream, "{:<16} {:4}\n", name, slot);
             return offset + 2;
         }
+
+        size_t jump(std::ostream& stream, Chunk const& chunk, std::string_view name, int sign, size_t offset)
+        {
+            uint16_t jump = static_cast<uint16_t>(chunk.code()[offset + 1]) << 8;
+            jump |= chunk.code()[offset + 2];
+            fmt::print(stream, "{:<16} {:4} -> {}\n", name, offset, offset + 3 + sign * jump);
+            return offset + 3;
+        }
     }
 
     void disassemble(std::ostream& stream, Chunk const& chunk, std::string_view name)
@@ -121,6 +129,12 @@ namespace lox
 
             case OpCode::OP_PRINT:
                 return simple(stream, chunk, "OP_PRINT", offset);
+
+            case OpCode::OP_JUMP:
+                return jump(stream, chunk, "OP_JUMP", 1, offset);
+
+            case OpCode::OP_JUMP_IF_FALSE:
+                return jump(stream, chunk, "OP_JUMP_IF_FALSE", 1, offset);
 
             case OpCode::OP_RETURN:
                 return simple(stream, chunk, "OP_RETURN", offset);

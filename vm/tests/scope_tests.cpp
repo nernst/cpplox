@@ -1,5 +1,3 @@
-#include <string>
-#include <boost/test/unit_test.hpp>
 #include "test_utils.hpp"
 
 BOOST_AUTO_TEST_CASE(variable_shadowing)
@@ -18,8 +16,8 @@ print a;
     auto [result, out, err] = run_test(test);
 
     BOOST_TEST(result == lox::VM::Result::OK);
-    BOOST_TEST(out == expected);
+    assert_equal(out, expected);
 #if !defined(DEBUG_COMPILE) && !defined(DEBUG_PRINT_CODE) && !defined(DEBUG_TRACE_EXECUTION)
-    BOOST_TEST(err == ""s);
+    assert_equal(err, ""s);
 #endif
 }

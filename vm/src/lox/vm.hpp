@@ -115,9 +115,17 @@ namespace lox
 
         size_t pc() const { return static_cast<size_t>(ip_ - ip_start_); }
 
-        byte read_byte() {
+        byte read_byte()
+        {
             assert(ip_ != ip_end_);
             return *ip_++;
+        }
+
+        uint16_t read_short()
+        {
+            assert(ip_ + 2 <= ip_end_);
+            ip_ += 2;
+            return static_cast<uint16_t>((ip_[-2] << 8) | ip_[-1]);
         }
 
         OpCode read_instruction() {

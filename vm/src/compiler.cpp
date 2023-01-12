@@ -146,6 +146,27 @@ namespace lox
                 emit(OpCode::OP_CONSTANT, id); 
             }
 
+            void patch_jump(int offset)
+            {
+                int jump = chunk_.code().size() - offset - 2;
+
+                if (jump > std::numeric_limits<uint16_t>::max())
+                {
+                    error("Too much code to jump over.");
+                }
+
+                chunk_.code()[offset] = static_cast<byte>((jump >> 8) & 0xff);
+                chunk_.code()[offset + 1] = static_cast<byte>(jump & 0xff);
+            }
+
+            int emit_jump(OpCode op)
+            {
+                emit(op);
+                emit(0xff);
+                emit(0xff);
+                return chunk_.code().size() - 2;
+            }
+
             void advance()
             {
                 previous_ = current_;
@@ -245,6 +266,26 @@ namespace lox
                 emit(OpCode::OP_POP);
             }
 
+            void if_statement()
+            {
+                consume(Token::LEFT_PAREN, "Expect '(' after 'if'.");
+                expression();
+                consume(Token::RIGHT_PAREN, "Expect ')' after condition.");
+
+                int then_jump = emit_jump(OpCode::OP_JUMP_IF_FALSE);
+                emit(OpCode::OP_POP);
+
+                statement();
+
+                int else_jump = emit_jump(OpCode::OP_JUMP);
+                patch_jump(then_jump);
+                emit(OpCode::OP_POP);
+
+                if (match(Token::ELSE))
+                    statement();
+                patch_jump(else_jump);
+            }
+
             void print_statement()
             {
                 expression();
@@ -307,6 +348,10 @@ namespace lox
                 if (match(Token::PRINT))
                 {
                     print_statement();
+                }
+                else if (match(Token::IF))
+                {
+                    if_statement();
                 }
                 else
                 {

@@ -174,6 +174,21 @@ namespace lox
                     stdout() << "\n";
                     break;
 
+                case OpCode::OP_JUMP:
+                {
+                    auto offset = read_short();
+                    ip_ += offset;
+                    break;
+                }
+
+                case OpCode::OP_JUMP_IF_FALSE:
+                {
+                    auto offset = read_short();
+                    if (peek(0).is_false())
+                        ip_ += offset;
+                    break;
+                }
+
                 case OpCode::OP_RETURN:
                     return Result::OK;
             }

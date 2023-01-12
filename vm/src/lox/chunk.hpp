@@ -31,6 +31,8 @@ namespace lox
 		OP_NOT,
 		OP_NEGATE,
 		OP_PRINT,
+		OP_JUMP,
+		OP_JUMP_IF_FALSE,
 		OP_RETURN,
 	};
 
@@ -67,8 +69,10 @@ namespace lox
 		}
 
 		std::vector<byte> const& code() const { return code_; }
+		std::vector<byte>& code() { return code_; }
 		ValueArray const& constants() const { return constants_; }
 		std::vector<size_t> const& lines() const { return lines_; }
+
 
 	private:
 		std::vector<byte> code_;

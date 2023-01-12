@@ -31,5 +31,22 @@ namespace lox
 
 	template<class> inline constexpr bool always_false_v = false;
 	template<class> inline constexpr bool always_true_v = true;
+
+	inline std::string strip(std::string value)
+	{
+		const char* const whitespace = " \t\n";
+		auto start = value.find_first_not_of(whitespace);
+		auto end = value.find_last_not_of(whitespace);
+		if (end != std::string::npos)
+			++end;
+
+		if (start == end || start == std::string::npos)
+			return {};
+		
+		if (start == 0 && end == value.size())
+			return value;
+		
+		return value.substr(start, end - start);
+	}
 }
 
