@@ -92,16 +92,18 @@ namespace lox
                 auto line_start = source.rfind("\n", token_start);
                 if (line_start == std::string_view::npos)
                     line_start = 0;
+                else
+                    ++line_start;
                 auto line_end = source.find("\n", token_start);
                 if (line_end == std::string_view::npos)
                     line_end = source.size();
 
                 const auto line = source.substr(line_start, line_end - line_start);
                 const auto line_pos = token_start - line_start;
-                std::string padding(6 + line_pos, ' ');
-                // fmt::print(stderr_, "line_start: {}, line_end: {}, line_pos: {}\nline: {}\n", line_start, line_end, line_pos, line);
+                std::string padding(6, ' ');
+                std::string hyphens(line_pos, '-');
                 fmt::print(stderr_, "{:4}: {}\n", token.line, line);
-                fmt::print(stderr_, "{}^\n", padding);
+                fmt::print(stderr_, "{}{}^\n", padding, hyphens);
             }
 
             void error_at(Token const& token, std::string const& message)
@@ -144,6 +146,19 @@ namespace lox
                 const byte id{make_constant(value)};
                 // fmt::print("emit: constant - {}\n", id);
                 emit(OpCode::OP_CONSTANT, id); 
+            }
+
+            void emit_loop(int loop_start)
+            {
+                emit(OpCode::OP_LOOP);
+
+                int offset = static_cast<int>(chunk_.code().size()) - loop_start + 2;
+                if (offset > std::numeric_limits<uint16_t>::max())
+                {
+                    error("Loop body too large.");
+                }
+                emit(static_cast<byte>((offset >> 8) & 0xff));
+                emit(static_cast<byte>(offset & 0xff));
             }
 
             void patch_jump(int offset)
@@ -266,6 +281,61 @@ namespace lox
                 emit(OpCode::OP_POP);
             }
 
+            void for_statement()
+            {
+                begin_scope();
+                consume(Token::LEFT_PAREN, "Expect '(' after 'for'.");
+
+                // initializer clause
+                if (match(Token::SEMICOLON)) {
+                    // no initializer
+                } else if (match(Token::VAR)) {
+                    var_declaration();
+                } else {
+                    expression_statement();
+                }
+
+                int loop_start = static_cast<int>(chunk_.code().size());
+
+                // condition clause
+                int exit_jump = -1;
+                if (!match(Token::SEMICOLON))
+                {
+                    expression();
+                    consume(Token::SEMICOLON, "Expect ';' after loop condition.");
+
+                    exit_jump = emit_jump(OpCode::OP_JUMP_IF_FALSE);
+                    emit(OpCode::OP_POP);
+                }
+
+                // increment clause
+                if (!match(Token::RIGHT_PAREN))
+                {
+                    int body_jump = emit_jump(OpCode::OP_JUMP);
+                    int increment_start = static_cast<int>(chunk_.code().size());
+
+                    expression();
+                    emit(OpCode::OP_POP);
+
+                    consume(Token::RIGHT_PAREN, "Expect ')' after for clauses.");
+
+                    emit_loop(loop_start);
+                    loop_start = increment_start;
+                    patch_jump(body_jump);
+                }
+
+                statement();
+                emit_loop(loop_start);
+
+                if (exit_jump != -1)
+                {
+                    patch_jump(exit_jump);
+                    emit(OpCode::OP_POP);
+                }
+
+                end_scope();
+            }
+
             void if_statement()
             {
                 consume(Token::LEFT_PAREN, "Expect '(' after 'if'.");
@@ -291,6 +361,21 @@ namespace lox
                 expression();
                 consume(Token::SEMICOLON, "Expect ';' after value.");
                 emit(OpCode::OP_PRINT);
+            }
+
+            void while_statement()
+            {
+                int loop_start = static_cast<int>(chunk_.code().size());
+                consume(Token::LEFT_PAREN, "Expect '(' after 'while'.");
+                expression();
+                consume(Token::RIGHT_PAREN, "Expect ')' after condition.");
+
+                int exit_jump = emit_jump(OpCode::OP_JUMP_IF_FALSE);
+                emit(OpCode::OP_POP);
+                statement();
+                emit_loop(loop_start);
+                patch_jump(exit_jump);
+                emit(OpCode::OP_POP);
             }
 
             void synchronize()
@@ -328,12 +413,6 @@ namespace lox
                 {
                     var_declaration();
                 }
-                else if (match(Token::LEFT_BRACE))
-                {
-                    begin_scope();
-                    block();
-                    end_scope();
-                }
                 else
                 {
                     statement();
@@ -349,9 +428,23 @@ namespace lox
                 {
                     print_statement();
                 }
+                else if (match(Token::FOR))
+                {
+                    for_statement();
+                }
                 else if (match(Token::IF))
                 {
                     if_statement();
+                }
+                else if (match(Token::WHILE))
+                {
+                    while_statement();
+                }
+                else if (match(Token::LEFT_BRACE))
+                {
+                    begin_scope();
+                    block();
+                    end_scope();
                 }
                 else
                 {
@@ -562,6 +655,30 @@ namespace lox
                 emit(OpCode::OP_DEFINE_GLOBAL, global);
             }
 
+            void and_(bool can_assign)
+            {
+                ignore(can_assign);
+
+                int end_jump = emit_jump(OpCode::OP_JUMP_IF_FALSE);
+                emit(OpCode::OP_POP);
+                parse_precedence(Precedence::AND);
+                patch_jump(end_jump);
+            }
+
+            void or_(bool can_assign)
+            {
+                ignore(can_assign);
+
+                int else_jump = emit_jump(OpCode::OP_JUMP_IF_FALSE);
+                int end_jump = emit_jump(OpCode::OP_JUMP);
+
+                patch_jump(else_jump);
+                emit(OpCode::OP_POP);
+
+                parse_precedence(Precedence::OR);
+                patch_jump(end_jump);
+            }
+
             void parse_precedence(Precedence precedence)
             {
                 advance();
@@ -619,6 +736,9 @@ namespace lox
                     RULE(GREATER_EQUAL, nullptr, &Compiler::binary, COMPARISON),
                     RULE(LESS, nullptr, &Compiler::binary, COMPARISON),
                     RULE(LESS_EQUAL, nullptr, &Compiler::binary, COMPARISON),
+
+                    RULE(AND, nullptr, &Compiler::and_, AND),
+                    RULE(OR, nullptr, &Compiler::or_, OR),
 
                     #undef RULE
                 };

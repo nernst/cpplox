@@ -136,6 +136,9 @@ namespace lox
             case OpCode::OP_JUMP_IF_FALSE:
                 return jump(stream, chunk, "OP_JUMP_IF_FALSE", 1, offset);
 
+            case OpCode::OP_LOOP:
+                return jump(stream, chunk, "OP_LOOP", -1, offset);
+
             case OpCode::OP_RETURN:
                 return simple(stream, chunk, "OP_RETURN", offset);
             

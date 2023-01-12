@@ -27,6 +27,11 @@ inline std::tuple<lox::VM::Result, std::string, std::string> run_test(std::strin
     lox::VM vm{out, err};
     auto result = vm.interpret(source);
 
+    if (result != lox::VM::Result::OK)
+    {
+        std::cerr << err.str() << std::endl;
+    }
+
     return std::make_tuple(result, out.str(), err.str());
 }
 

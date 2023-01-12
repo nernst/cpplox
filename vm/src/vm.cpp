@@ -31,8 +31,8 @@ namespace lox
                 runtime_error("Operands must be numbers."); \
                 return Result::RUNTIME_ERROR; \
             } \
-            Value a = pop(); \
             Value b = pop(); \
+            Value a = pop(); \
             push(Value(a.get<double>() op b.get<double>())); \
         } while (false)
 
@@ -188,6 +188,14 @@ namespace lox
                         ip_ += offset;
                     break;
                 }
+
+                case OpCode::OP_LOOP:
+                {
+                    auto offset = read_short();
+                    ip_ -= offset;
+                    break;
+                }
+
 
                 case OpCode::OP_RETURN:
                     return Result::OK;
