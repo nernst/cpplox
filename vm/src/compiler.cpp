@@ -34,7 +34,7 @@ namespace lox
             Compiler(std::string const& source, FunctionType function_type, std::ostream& stderr)
             : source_{&source}
             , stderr_{stderr}
-            , scanner_{source}
+            , scanner_{new Scanner{source}}
             , had_error_{false}
             , panic_mode_{false}
             , function_{new Function}
@@ -53,6 +53,12 @@ namespace lox
             Compiler(Compiler const&) = delete;
             Compiler(Compiler&&) = delete;
 
+            ~Compiler() noexcept
+            {
+                if (!parent_)
+                    delete scanner_;
+            }
+
             Compiler& operator=(Compiler const&) = delete;
             Compiler& operator=(Compiler&&) = delete;
 
@@ -70,13 +76,36 @@ namespace lox
             Chunk& chunk() { return function_->chunk(); }
 
         private:
+
+            Compiler(Compiler& parent, FunctionType function_type)
+            : source_{parent.source_}
+            , stderr_{parent.stderr_}
+            , scanner_{parent.scanner_}
+            , had_error_{false}
+            , panic_mode_{false}
+            , function_{new Function}
+            , function_type_{function_type}
+            , local_count_{0}
+            , scope_depth_{0}
+            {
+                Local& local = locals_[local_count_++];
+                local.depth = 0;
+                local.name.start = "";
+                local.name.length = 0;
+                local.name.token = {};
+            }
+
+            Compiler* parent_ = nullptr;
             std::string const* source_;
             std::ostream& stderr_;
-            Scanner scanner_;
+            Scanner* scanner_;
+            
+            // begin variables that need to be "returned" to parent at end
             Token current_;
             Token previous_;
             bool had_error_;
             bool panic_mode_;
+            // end variables that need to be "returned" to parent at end
 
             static constexpr size_t max_locals = static_cast<size_t>(std::numeric_limits<byte>::max()) + 1;
 
@@ -212,7 +241,7 @@ namespace lox
                 previous_ = current_;
                 while (true)
                 {
-                    current_ = scanner_.scan();
+                    current_ = scanner_->scan();
                     if (current_.type != Token::ERROR)
                         break;
 
@@ -256,6 +285,14 @@ namespace lox
                             : "<script>"
                     );
 #endif
+                if (parent_)
+                {
+                    parent_->current_ = current_;
+                    parent_->previous_ = previous_;
+                    parent_->had_error_ = had_error_;
+                    parent_->panic_mode_ = panic_mode_;
+                }
+
                 return function_;
             }
 
@@ -287,6 +324,41 @@ namespace lox
                     declaration();
                 }
                 consume(Token::RIGHT_BRACE, "Expect '}' after block.");
+            }
+
+            void function(FunctionType type)
+            {
+                Compiler compiler{*this, type};
+                compiler.begin_scope();
+                compiler.consume(Token::LEFT_PAREN, "Expect '(' after function name.");
+                if (!compiler.check(Token::RIGHT_PAREN))
+                {
+                    int arity = 0;
+                    do
+                    {
+                        ++arity;
+                        if (arity > 255) {
+                            compiler.error_at_current("Cannot have more than 255 parameters.");
+                        }
+
+                        auto constant = compiler.parse_variable("Expect parameter name");
+                        compiler.define_variable(constant);
+                    }
+                }
+                compiler.consume(Token::RIGHT_PAREN, "Expect ')' after parameters.");
+                compiler.consume(Token::LEFT_BRACE, "Expect '{' after function body.");
+                compiler.block();
+
+                auto function = compiler.end();
+                emit(OpCode::OP_CONSTANT, make_constant(Value{function}));
+            }
+
+            void fun_declaration()
+            {
+                byte global = parse_variable("Expect function name.");
+                mark_initialized();
+                function(FunctionType::FUNCTION);
+                define_variable(global);
             }
 
             void var_declaration()
@@ -441,12 +513,13 @@ namespace lox
 
             void declaration()
             {
-                if (match(Token::VAR))
-                {
+                if (match(Token::FUN)) {
+                    fun_declaration();
+                }
+                else if (match(Token::VAR)) {
                     var_declaration();
                 }
-                else
-                {
+                else {
                     statement();
                 }
 
@@ -673,6 +746,9 @@ namespace lox
 
             void mark_initialized()
             {
+                if (scope_depth_ == 0)
+                    return;
+
                 locals_[local_count_ - 1].depth = scope_depth_;
             }
 
