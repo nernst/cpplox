@@ -44,6 +44,7 @@ namespace lox
         CallFrame& operator=(CallFrame const&) = default;
         CallFrame& operator=(CallFrame&&) = default;
 
+        Function* function() const { return function_; }
         Value* slots() const { return slots_; }
         byte*& ip() { return ip_; }
         size_t pc() const { return static_cast<size_t>(ip_ - ip_begin_); }
@@ -142,6 +143,7 @@ namespace lox
 
         void reset()
         {
+            stack_ = {};
             stack_top_ = stack_.begin();
             frame_count_ = 0;
         }
@@ -149,7 +151,6 @@ namespace lox
     private:
         std::array<CallFrame, frames_max> frames_;
         size_t frame_count_ = 0;
-        CallFrame* frame_ = nullptr;
         std::array<Value, stack_max> stack_;
         Value* stack_top_ = &stack_[0];
 
@@ -159,10 +160,48 @@ namespace lox
         std::ostream* stdout_ = &std::cout;
         std::ostream* stderr_ = &std::cerr;
 
-        CallFrame& current_frame()
+        CallFrame* current_frame()
         {
             assert(frame_count_ != 0);
-            return frames_[frame_count_ - 1];
+            return &frames_[frame_count_ - 1];
+        }
+
+        CallFrame* push_frame(Function* function, byte arg_count)
+        {
+            if (frame_count_ == frames_max)
+            {
+                runtime_error("Stack overflow");
+                return nullptr;
+            }
+
+            frames_[frame_count_++] = CallFrame{function, stack_top_ - arg_count - 1};
+            return current_frame();
+        }
+
+        CallFrame* pop_frame()
+        {
+            if (frame_count_ == 0)
+            {
+                runtime_error("Stack underflow");
+                return nullptr;
+            }
+
+            // #define CLEAR_STACK
+
+            auto slots_end = current_frame()->slots();
+            frames_[--frame_count_] = CallFrame{};
+            if (frame_count_ == 0)
+                return nullptr;
+
+            auto current = current_frame();
+            stack_top_ = slots_end;
+            
+            #ifdef CLEAR_STACK
+            for (auto p = stack_top_; p != slots_end; ++p)
+                *p = {};
+            #endif
+
+            return current;
         }
 
         void free_objects()
@@ -190,16 +229,17 @@ namespace lox
 
         Result run();
 
+        bool call_value(Value callee, byte arg_count);
+        bool call(Function* function, byte arg_count);
+
         byte read_byte()
         {
-            assert(frame_);
-            return frame_->read_byte();
+            return current_frame()->read_byte();
         }
 
         uint16_t read_short()
         {
-            assert(frame_);
-            return frame_->read_short();
+            return current_frame()->read_short();
         }
 
         OpCode read_instruction()
@@ -209,28 +249,41 @@ namespace lox
 
         Value read_constant()
         {
-            assert(frame_);
-            return frame_->read_constant();
+            return current_frame()->read_constant();
         }
 
         String* read_string()
         {
-            assert(frame_);
-            return frame_->read_string();
+            return current_frame()->read_string();
         }
 
         template<typename... Args>
         void runtime_error(fmt::format_string<Args...>&& format, Args&&... args)
         {
-            auto& frame = current_frame();
-            size_t instruction = frame.ip() - frame.chunk().begin() - 1;
-            size_t line = frame.chunk().lines()[instruction];
-
             stderr() << fmt::format(
                 std::forward<decltype(format)>(format),
                 std::forward<Args>(args)...
             );
-            fmt::print(*stderr_, "\n[line {}] in script\n", line);
+            stderr() << "\n";
+
+            for (size_t i = frame_count_; i != 0; --i)
+            {
+                auto& frame = frames_[i - 1];
+                size_t instruction = frame.ip() - frame.chunk().begin() - 1;
+                size_t line = frame.chunk().lines()[instruction];
+                bool has_name = frame.function()->name() != nullptr;
+
+                fmt::print(
+                    *stderr_,
+                    "\n[line {}] in {}{}\n",
+                    line,
+                    has_name ? frame.function()->name()->view() : "script",
+                    has_name ? "()" : ""
+                );
+            }
+
+
+            reset();
         }
     };
 }

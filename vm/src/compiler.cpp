@@ -40,12 +40,6 @@ namespace lox
             , panic_mode_{false}
             {
                 push_state(FunctionType::SCRIPT);
-
-                Local& local = current().locals_[current().local_count_++];
-                local.depth = 0;
-                local.name.start = "";
-                local.name.length = 0;
-                local.name.token = {};
             }
 
             Compiler() = delete;
@@ -84,9 +78,9 @@ namespace lox
             {
                 Function* function_;
                 FunctionType function_type_;
+                std::array<Local, max_locals> locals_;
                 int local_count_;
                 int scope_depth_;
-                std::array<Local, max_locals> locals_;
 
                 State()
                 : function_{nullptr}
@@ -107,6 +101,30 @@ namespace lox
 
                 State& operator=(State const&) = default;
                 State& operator=(State&&) = default;
+
+                friend std::ostream& operator<<(std::ostream& os, State const& state)
+                {
+                    os << "{Function ";
+                    if (state.function_type_ == FunctionType::INVALID || !state.function_)
+                    {
+                        os << "!!INVALID!!" << std::endl;
+                    }
+                    else
+                    {
+                        os << (state.function_->name() ? state.function_->name()->view() : "<script>")
+                            << ", scope depth: " << state.scope_depth_
+                            << ", locals: " << state.local_count_ << " [";
+                        
+                        for (int i = 0; i < state.local_count_; ++i)
+                        {
+                            os << "{" << state.locals_[i].name.token 
+                                << ", depth=" << state.locals_[i].depth << "}, ";
+                        }
+                    }
+                    os << "}";
+
+                    return os;
+                }
             };
 
             std::vector<State> state_;
@@ -117,6 +135,12 @@ namespace lox
                     state_.emplace_back(type);
                 else
                     state_.emplace_back(type, new String(previous_.token));
+
+                Local& local = current().locals_[current().local_count_++];
+                local.depth = 0;
+                local.name.start = "";
+                local.name.length = 0;
+                local.name.token = {};
             }
 
             void pop_state()
@@ -207,8 +231,15 @@ namespace lox
             void emit(byte value) { chunk().write(value, previous_.line); }
             void emit(OpCode op) { emit(static_cast<byte>(op)); }
             void emit(OpCode op, byte value) { emit(op); emit(value); }
-            void emit_return() { emit(OpCode::OP_RETURN); }
-            void emit(Value value) {
+
+            void emit_return()
+            { 
+                emit(OpCode::OP_NIL);
+                emit(OpCode::OP_RETURN);
+            }
+
+            void emit(Value value)
+            {
                 const byte id{make_constant(value)};
                 // fmt::print("emit: constant - {}\n", id);
                 emit(OpCode::OP_CONSTANT, id); 
@@ -298,6 +329,10 @@ namespace lox
                     );
 #endif
                 auto func = current().function_;
+
+#ifdef DEBUG_PRINT_CODE
+                stderr_ << state_.back() << std::endl;
+#endif
                 pop_state();
                 return func;
             }
@@ -342,7 +377,7 @@ namespace lox
                 consume(Token::LEFT_PAREN, "Expect '(' after function name.");
                 if (!check(Token::RIGHT_PAREN))
                 {
-                    int arity = 0;
+                    unsigned arity = 0;
                     do
                     {
                         ++arity;
@@ -479,6 +514,25 @@ namespace lox
                 emit(OpCode::OP_PRINT);
             }
 
+            void return_statement()
+            {
+                if (current().function_type_ == FunctionType::SCRIPT)
+                {
+                    error("Cannot return from top-level code.");
+                }
+
+                if (match(Token::SEMICOLON))
+                {
+                    emit_return();
+                }
+                else
+                {
+                    expression();
+                    consume(Token::SEMICOLON, "Expect ';' after return value.");
+                    emit(OpCode::OP_RETURN);
+                }
+            }
+
             void while_statement()
             {
                 int loop_start = static_cast<int>(chunk().code().size());
@@ -552,6 +606,10 @@ namespace lox
                 else if (match(Token::IF))
                 {
                     if_statement();
+                }
+                else if (match(Token::RETURN))
+                {
+                    return_statement();
                 }
                 else if (match(Token::WHILE))
                 {
@@ -672,6 +730,14 @@ namespace lox
                 }
             }
 
+            void call(bool can_assign)
+            {
+                ignore(can_assign);
+
+                byte arg_count = argument_list();
+                emit(OpCode::OP_CALL, arg_count);
+            }
+
             void literal(bool can_assign)
             {
                 ignore(can_assign);
@@ -775,6 +841,24 @@ namespace lox
                 emit(OpCode::OP_DEFINE_GLOBAL, global);
             }
 
+            byte argument_list()
+            {
+                byte arg_count{0};
+                if (!check(Token::RIGHT_PAREN))
+                {
+                    do
+                    {
+                        expression();
+                        if (arg_count == Function::max_parameters)
+                            error(fmt::format("Cannot have more than {} arguments.", Function::max_parameters));
+                        ++arg_count;
+                    } while (match(Token::COMMA));
+                }
+
+                consume(Token::RIGHT_PAREN, "Expect ')' after arguments.");
+                return arg_count;
+            }
+
             void and_(bool can_assign)
             {
                 ignore(can_assign);
@@ -838,7 +922,7 @@ namespace lox
                 static const std::unordered_map<Token::Type, ParseRule> rules = {
                     #define RULE(token, prefix, infix, precedence) \
                         {Token::token, {prefix, infix, Precedence::precedence }}
-                    RULE(LEFT_PAREN, &Compiler::grouping, nullptr, NONE),
+                    RULE(LEFT_PAREN, &Compiler::grouping, &Compiler::call, CALL),
                     RULE(MINUS, &Compiler::unary, &Compiler::binary, TERM),
                     RULE(PLUS, nullptr, &Compiler::binary, TERM),
                     RULE(SLASH, nullptr, &Compiler::binary, FACTOR),

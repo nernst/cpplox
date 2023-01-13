@@ -139,6 +139,9 @@ namespace lox
             case OpCode::OP_LOOP:
                 return jump(stream, chunk, "OP_LOOP", -1, offset);
 
+            case OpCode::OP_CALL:
+                return byte_instruction(stream, chunk, "OP_CALL", offset);
+
             case OpCode::OP_RETURN:
                 return simple(stream, chunk, "OP_RETURN", offset);
             

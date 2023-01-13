@@ -126,7 +126,7 @@ namespace lox
     class Function : public Object
     {
     public:
-        static constexpr int max_parameters = 255;
+        static constexpr unsigned max_parameters = 255;
 
         Function()
         : Object{}
@@ -135,7 +135,7 @@ namespace lox
         , name_{nullptr}
         { }
         
-        Function(int arity, Chunk&& chunk, String* name)
+        Function(unsigned arity, Chunk&& chunk, String* name)
         : Object{}
         , arity_{arity}
         , chunk_{std::move(chunk)}
@@ -160,8 +160,14 @@ namespace lox
         ObjectType type() const override { return ObjectType::FUNCTION; }
         const char* type_name() const override { return "Function"; }
 
-        int arity() const { return arity_; }
-        void arity(int value) { assert(value <= max_parameters); arity_ = value; }
+        unsigned arity() const { return arity_; }
+
+        void arity(unsigned value)
+        {
+            assert(value <= max_parameters);
+            arity_ = value;
+        }
+
         String* name() const { return name_; }
         Chunk const& chunk() const { return chunk_; }
         Chunk& chunk() { return chunk_; }
@@ -169,7 +175,7 @@ namespace lox
         size_t hash() const override { return reinterpret_cast<size_t>(this); }
 
     private:
-        int arity_;
+        unsigned arity_;
         Chunk chunk_;
         String* name_;
     };

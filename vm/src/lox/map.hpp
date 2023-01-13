@@ -4,6 +4,7 @@
 #include "value.hpp"
 #include "object.hpp"
 #include <memory>
+#include <iosfwd>
 
 namespace lox
 {
@@ -177,5 +178,7 @@ namespace lox
             entries_.reset(new Entry[capacity_]);
             copy(old_entries.get(), old_capacity);
         }
+
+        friend std::ostream& operator<<(std::ostream& os, Map const& map);
     };
 }

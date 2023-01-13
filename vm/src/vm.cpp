@@ -15,15 +15,51 @@ namespace lox
             return Result::COMPILE_ERROR;
         
         push(Value{function});
-        CallFrame& frame = frames_[frame_count_++];
-        frame = CallFrame{function, stack_.data()};
-
+        call(function, 0);
         return run();
+    }
+
+    bool VM::call_value(Value callee, byte arg_count)
+    {
+        Object* obj{nullptr};
+        if (callee.try_get(obj))
+        {
+            switch(obj->type())
+            {
+                case ObjectType::FUNCTION:
+                    return call(dynamic_cast<Function*>(obj), arg_count);
+                
+                default:
+                    break; // non-callable
+            }
+        }
+
+        runtime_error("Can only call functions and classes. type: {}", callee.type_name());
+        return false;
+    }
+
+    bool VM::call(Function* function, byte arg_count)
+    {
+        assert(function);
+
+        if (arg_count != function->arity())
+        {
+            runtime_error("Expected {} arguments but got {}.", function->arity(), arg_count);
+            return false;
+        }
+        if (frame_count_ == frames_max)
+        {
+            runtime_error("Stack overflow.");
+            return false;
+        }
+
+        push_frame(function, arg_count);
+        return true;
     }
 
     VM::Result VM::run()
     {
-        frame_ = &frames_[frame_count_ - 1];
+        auto frame = current_frame();
 
         #define BINARY_OP(op) do { \
             if (!peek(0).is<double>() || !peek(1).is<double>()) { \
@@ -41,19 +77,32 @@ namespace lox
         while (true)
         {
 #ifdef DEBUG_TRACE_EXECUTION
-            fmt::print(stderr(), "PC: {}\n", frame_->pc());
+            fmt::print(stderr(), "PC: {}\n", frame->pc());
+
+            stderr() << "Globals: " << globals_ << std::endl;
+
             stderr() << "Stack: { ";
-            for (auto* p = stack_.data() + 1; p != stack_top_; ++p)
+            for (auto* p = stack_.data(); p != stack_top_; ++p)
             {
                 stderr() << "[";
                 print_value(stderr(), *p);
                 stderr() << "], ";
             }
             stderr() << "}\n";
+
+            stderr() << "Window: { ";
+            for (auto* p = frame->slots(); p != stack_top_; ++p)
+            {
+                stderr() << "[";
+                print_value(stderr(), *p);
+                stderr() << "], ";
+            }
+            stderr() << "}\n";
+
             disassemble(
                 stderr(), 
-                frame_->chunk(), 
-                static_cast<size_t>(frame_->ip() - frame_->chunk().code().data()));
+                frame->chunk(), 
+                static_cast<size_t>(frame->ip() - frame->chunk().code().data()));
 #endif
             auto instruction = read_instruction();
             switch (instruction)
@@ -73,14 +122,14 @@ namespace lox
                 case OpCode::OP_GET_LOCAL:
                 {
                     byte slot = read_byte();
-                    push(frame_->slots()[slot]);
+                    push(frame->slots()[slot]);
                     break;
                 }
 
                 case OpCode::OP_SET_LOCAL:
                 {
                     byte slot = read_byte();
-                    frame_->slots()[slot] = peek(0);
+                    frame->slots()[slot] = peek(0);
                     break;
                 }
 
@@ -184,7 +233,7 @@ namespace lox
                 case OpCode::OP_JUMP:
                 {
                     auto offset = read_short();
-                    frame_->ip() += offset;
+                    frame->ip() += offset;
                     break;
                 }
 
@@ -192,20 +241,40 @@ namespace lox
                 {
                     auto offset = read_short();
                     if (peek(0).is_false())
-                        frame_->ip() += offset;
+                        frame->ip() += offset;
                     break;
                 }
 
                 case OpCode::OP_LOOP:
                 {
                     auto offset = read_short();
-                    frame_->ip() -= offset;
+                    frame->ip() -= offset;
+                    break;
+                }
+
+                case OpCode::OP_CALL:
+                {
+                    byte arg_count = read_byte();
+                    if (!call_value(peek(arg_count), arg_count))
+                        return Result::RUNTIME_ERROR;
+
+                    frame = current_frame();
                     break;
                 }
 
 
                 case OpCode::OP_RETURN:
-                    return Result::OK;
+                {
+                    auto result = pop();
+                    frame = pop_frame();
+                    if (frame == nullptr)
+                    {
+                        pop();
+                        return Result::OK;
+                    }
+                    push(result);
+                    break;
+                }
             }
         }
         #undef BINARY_OP
