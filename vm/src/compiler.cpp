@@ -27,22 +27,21 @@ namespace lox
 
             enum class FunctionType
             {
+                INVALID,
                 FUNCTION,
                 SCRIPT,
             };
 
-            Compiler(std::string const& source, FunctionType function_type, std::ostream& stderr)
+            Compiler(std::string const& source, std::ostream& stderr)
             : source_{&source}
             , stderr_{stderr}
-            , scanner_{new Scanner{source}}
+            , scanner_{source}
             , had_error_{false}
             , panic_mode_{false}
-            , function_{new Function}
-            , function_type_{function_type}
-            , local_count_{0}
-            , scope_depth_{0}
             {
-                Local& local = locals_[local_count_++];
+                push_state(FunctionType::SCRIPT);
+
+                Local& local = current().locals_[current().local_count_++];
                 local.depth = 0;
                 local.name.start = "";
                 local.name.length = 0;
@@ -52,12 +51,6 @@ namespace lox
             Compiler() = delete;
             Compiler(Compiler const&) = delete;
             Compiler(Compiler&&) = delete;
-
-            ~Compiler() noexcept
-            {
-                if (!parent_)
-                    delete scanner_;
-            }
 
             Compiler& operator=(Compiler const&) = delete;
             Compiler& operator=(Compiler&&) = delete;
@@ -73,47 +66,66 @@ namespace lox
                 return had_error_ ? nullptr : func;
             }
 
-            Chunk& chunk() { return function_->chunk(); }
+            Chunk& chunk() { return current().function_->chunk(); }
 
         private:
+            static constexpr size_t max_locals = static_cast<size_t>(std::numeric_limits<byte>::max()) + 1;
 
-            Compiler(Compiler& parent, FunctionType function_type)
-            : source_{parent.source_}
-            , stderr_{parent.stderr_}
-            , scanner_{parent.scanner_}
-            , had_error_{false}
-            , panic_mode_{false}
-            , function_{new Function}
-            , function_type_{function_type}
-            , local_count_{0}
-            , scope_depth_{0}
-            {
-                Local& local = locals_[local_count_++];
-                local.depth = 0;
-                local.name.start = "";
-                local.name.length = 0;
-                local.name.token = {};
-            }
-
-            Compiler* parent_ = nullptr;
             std::string const* source_;
             std::ostream& stderr_;
-            Scanner* scanner_;
+            Scanner scanner_;
             
-            // begin variables that need to be "returned" to parent at end
             Token current_;
             Token previous_;
             bool had_error_;
             bool panic_mode_;
-            // end variables that need to be "returned" to parent at end
 
-            static constexpr size_t max_locals = static_cast<size_t>(std::numeric_limits<byte>::max()) + 1;
+            struct State
+            {
+                Function* function_;
+                FunctionType function_type_;
+                int local_count_;
+                int scope_depth_;
+                std::array<Local, max_locals> locals_;
 
-            Function* function_;
-            FunctionType function_type_;
-            std::array<Local, max_locals> locals_;
-            int local_count_;
-            int scope_depth_;
+                State()
+                : function_{nullptr}
+                , function_type_{FunctionType::INVALID}
+                , local_count_{0}
+                , scope_depth_{0}
+                { }
+
+                State(FunctionType type, String* name = nullptr)
+                : function_{new Function(name)}
+                , function_type_{type}
+                , local_count_{0}
+                , scope_depth_{0}
+                { }
+
+                State(State const&) = default;
+                State(State&&) = default;
+
+                State& operator=(State const&) = default;
+                State& operator=(State&&) = default;
+            };
+
+            std::vector<State> state_;
+
+            void push_state(FunctionType type)
+            {
+                if (type == FunctionType::SCRIPT)
+                    state_.emplace_back(type);
+                else
+                    state_.emplace_back(type, new String(previous_.token));
+            }
+
+            void pop_state()
+            {
+                assert(!state_.empty());
+                state_.pop_back();
+            }
+
+            State& current() { return state_.back(); }
 
             enum class Precedence {
                 NONE,
@@ -241,7 +253,7 @@ namespace lox
                 previous_ = current_;
                 while (true)
                 {
-                    current_ = scanner_->scan();
+                    current_ = scanner_.scan();
                     if (current_.type != Token::ERROR)
                         break;
 
@@ -280,35 +292,32 @@ namespace lox
                     disassemble(
                         stderr_, 
                         chunk(), 
-                        function_->name() 
-                            ? function_->name()->view()
+                        current().function_->name() 
+                            ? current().function_->name()->view()
                             : "<script>"
                     );
 #endif
-                if (parent_)
-                {
-                    parent_->current_ = current_;
-                    parent_->previous_ = previous_;
-                    parent_->had_error_ = had_error_;
-                    parent_->panic_mode_ = panic_mode_;
-                }
-
-                return function_;
+                auto func = current().function_;
+                pop_state();
+                return func;
             }
 
             void begin_scope()
             {
-                ++scope_depth_;
+                ++current().scope_depth_;
             }
 
             void end_scope()
             {
-                --scope_depth_;
+                --current().scope_depth_;
 
-                while (local_count_ > 0 && locals_[local_count_ - 1].depth > scope_depth_)
+                while (
+                    current().local_count_ > 0
+                    && current().locals_[current().local_count_ - 1].depth > current().scope_depth_
+                    )
                 {
                     emit(OpCode::OP_POP);
-                    --local_count_;
+                    --current().local_count_;
                 }
             }
 
@@ -328,28 +337,31 @@ namespace lox
 
             void function(FunctionType type)
             {
-                Compiler compiler{*this, type};
-                compiler.begin_scope();
-                compiler.consume(Token::LEFT_PAREN, "Expect '(' after function name.");
-                if (!compiler.check(Token::RIGHT_PAREN))
+                push_state(type);
+                begin_scope();
+                consume(Token::LEFT_PAREN, "Expect '(' after function name.");
+                if (!check(Token::RIGHT_PAREN))
                 {
                     int arity = 0;
                     do
                     {
                         ++arity;
-                        if (arity > 255) {
-                            compiler.error_at_current("Cannot have more than 255 parameters.");
+                        if (arity > Function::max_parameters) {
+                            error_at_current("Cannot have more than 255 parameters.");
                         }
 
-                        auto constant = compiler.parse_variable("Expect parameter name");
-                        compiler.define_variable(constant);
-                    }
-                }
-                compiler.consume(Token::RIGHT_PAREN, "Expect ')' after parameters.");
-                compiler.consume(Token::LEFT_BRACE, "Expect '{' after function body.");
-                compiler.block();
+                        auto constant = parse_variable("Expect parameter name");
+                        define_variable(constant);
+                    } while (match(Token::COMMA));
 
-                auto function = compiler.end();
+                    current().function_->arity(arity);
+                }
+                consume(Token::RIGHT_PAREN, "Expect ')' after parameters.");
+                consume(Token::LEFT_BRACE, "Expect '{' after function body.");
+                block();
+
+                auto function = end();
+
                 emit(OpCode::OP_CONSTANT, make_constant(Value{function}));
             }
 
@@ -685,11 +697,11 @@ namespace lox
 
             int resolve_local(Token const& name)
             {
-                for (int i = local_count_ - 1; i >= 0; --i)
+                for (int i = current().local_count_ - 1; i >= 0; --i)
                 {
-                    if (identifiers_equal(name, locals_[i].name))
+                    if (identifiers_equal(name, current().locals_[i].name))
                     {
-                        if (locals_[i].depth == -1)
+                        if (current().locals_[i].depth == -1)
                         {
                             error("Cannot read local variable in its own initializer.");
                         }
@@ -702,27 +714,27 @@ namespace lox
 
             void add_local(Token const& name)
             {
-                if (local_count_ == max_locals)
+                if (current().local_count_ == max_locals)
                 {
                     error("Too many local variables in function.");
                     return;
                 }
 
-                Local& local = locals_[local_count_++];
+                Local& local = current().locals_[current().local_count_++];
                 local.name = name;
                 local.depth = -1;
             }
 
             void declare_variable()
             {
-                if (scope_depth_ == 0)
+                if (current().scope_depth_ == 0)
                     return;
                 
                 Token name{previous_};
-                for (int i = local_count_ - 1; i >= 0; --i)
+                for (int i = current().local_count_ - 1; i >= 0; --i)
                 {
-                    auto& local = locals_[i];
-                    if (local.depth != -1 && local.depth < scope_depth_)
+                    auto& local = current().locals_[i];
+                    if (local.depth != -1 && local.depth < current().scope_depth_)
                         break;
 
                     if (identifiers_equal(local.name, name))
@@ -738,7 +750,7 @@ namespace lox
             {
                 consume(Token::IDENTIFIER, error_message);
                 declare_variable();
-                if (scope_depth_ > 0)
+                if (current().scope_depth_ > 0)
                     return 0;
 
                 return identifier_constant(previous_);
@@ -746,15 +758,15 @@ namespace lox
 
             void mark_initialized()
             {
-                if (scope_depth_ == 0)
+                if (current().scope_depth_ == 0)
                     return;
 
-                locals_[local_count_ - 1].depth = scope_depth_;
+                current().locals_[current().local_count_ - 1].depth = current().scope_depth_;
             }
 
             void define_variable(byte global)
             {
-                if (scope_depth_ > 0)
+                if (current().scope_depth_ > 0)
                 {
                     mark_initialized();
                     return;
@@ -863,7 +875,7 @@ namespace lox
     }
     Function* compile(std::string const& source, std::ostream& stderr)
     {
-        Compiler compiler{source, Compiler::FunctionType::SCRIPT, stderr};
+        Compiler compiler{source, stderr};
         return compiler.compile();
     }
 }

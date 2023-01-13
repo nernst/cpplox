@@ -126,6 +126,8 @@ namespace lox
     class Function : public Object
     {
     public:
+        static constexpr int max_parameters = 255;
+
         Function()
         : Object{}
         , arity_{0}
@@ -137,6 +139,13 @@ namespace lox
         : Object{}
         , arity_{arity}
         , chunk_{std::move(chunk)}
+        , name_{name}
+        { }
+
+        explicit Function(String* name)
+        : Object{}
+        , arity_{0}
+        , chunk_{}
         , name_{name}
         { }
 
@@ -152,6 +161,7 @@ namespace lox
         const char* type_name() const override { return "Function"; }
 
         int arity() const { return arity_; }
+        void arity(int value) { assert(value <= max_parameters); arity_ = value; }
         String* name() const { return name_; }
         Chunk const& chunk() const { return chunk_; }
         Chunk& chunk() { return chunk_; }
