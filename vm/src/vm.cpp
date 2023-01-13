@@ -1,34 +1,36 @@
 #include "lox/compiler.hpp"
 #include "lox/vm.hpp"
+#include <fmt/format.h>
+
 #ifdef DEBUG_TRACE_EXECUTION
 #include "lox/debug.hpp"
 #endif
-#include <fmt/format.h>
 
 namespace lox
 {
     VM::Result VM::interpret(std::string const& source)
     {
-        Chunk chunk;
-        if (!compile(source, chunk, stderr()))
+        Function* function = compile(source, stderr());
+        if (function == nullptr)
             return Result::COMPILE_ERROR;
+        
+        push(Value{function});
+        CallFrame& frame = frames_[frame_count_++];
+        frame = CallFrame{function, stack_.data()};
 
-        chunk_ = std::move(chunk);
-        return interpret();
-    }
-
-    VM::Result VM::interpret()
-    {
-        ip_start_ = ip_ = chunk_.code().data();
-        ip_end_ = ip_ + chunk_.code().size();
         return run();
     }
 
     VM::Result VM::run()
     {
+        frame_ = &frames_[frame_count_ - 1];
+
         #define BINARY_OP(op) do { \
             if (!peek(0).is<double>() || !peek(1).is<double>()) { \
-                runtime_error("Operands must be numbers."); \
+                runtime_error(\
+                    "Operands must be numbers. {{left: {}, right: {}}}", \
+                    peek(1).type_name(), \
+                    peek(0).type_name()); \
                 return Result::RUNTIME_ERROR; \
             } \
             Value b = pop(); \
@@ -39,16 +41,19 @@ namespace lox
         while (true)
         {
 #ifdef DEBUG_TRACE_EXECUTION
-            fmt::print(stderr(), "PC: {}\n", pc());
-            stderr() << "Stack: ";
-            for (auto const& value : stack_)
+            fmt::print(stderr(), "PC: {}\n", frame_->pc());
+            stderr() << "Stack: { ";
+            for (auto* p = stack_.data() + 1; p != stack_top_; ++p)
             {
-                stderr() << "[ ";
-                print_value(stderr(), value);
-                stderr() << " ]";
+                stderr() << "[";
+                print_value(stderr(), *p);
+                stderr() << "], ";
             }
-            stderr() << "\n";
-            disassemble(stderr(), chunk_, static_cast<size_t>(ip_ - chunk_.code().data()));
+            stderr() << "}\n";
+            disassemble(
+                stderr(), 
+                frame_->chunk(), 
+                static_cast<size_t>(frame_->ip() - frame_->chunk().code().data()));
 #endif
             auto instruction = read_instruction();
             switch (instruction)
@@ -68,14 +73,14 @@ namespace lox
                 case OpCode::OP_GET_LOCAL:
                 {
                     byte slot = read_byte();
-                    push(stack_[slot]);
+                    push(frame_->slots()[slot]);
                     break;
                 }
 
                 case OpCode::OP_SET_LOCAL:
                 {
                     byte slot = read_byte();
-                    stack_[slot] = peek(0);
+                    frame_->slots()[slot] = peek(0);
                     break;
                 }
 
@@ -120,8 +125,10 @@ namespace lox
 
                         if (peek(0).is_string() && peek(1).is_string())
                         {
-                            Value v_lhs{pop()};
+                            // ORDER MATTERS!
                             Value v_rhs{pop()};
+                            Value v_lhs{pop()};
+
                             String* lhs = dynamic_cast<String*>(v_lhs.get<Object*>()); 
                             String* rhs = dynamic_cast<String*>(v_rhs.get<Object*>());
                             assert(lhs && "Expected String*!");
@@ -177,7 +184,7 @@ namespace lox
                 case OpCode::OP_JUMP:
                 {
                     auto offset = read_short();
-                    ip_ += offset;
+                    frame_->ip() += offset;
                     break;
                 }
 
@@ -185,14 +192,14 @@ namespace lox
                 {
                     auto offset = read_short();
                     if (peek(0).is_false())
-                        ip_ += offset;
+                        frame_->ip() += offset;
                     break;
                 }
 
                 case OpCode::OP_LOOP:
                 {
                     auto offset = read_short();
-                    ip_ -= offset;
+                    frame_->ip() -= offset;
                     break;
                 }
 

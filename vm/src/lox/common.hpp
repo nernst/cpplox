@@ -48,5 +48,11 @@ namespace lox
 		
 		return value.substr(start, end - start);
 	}
+
+    enum class ObjectType
+    {
+        STRING,
+        FUNCTION,
+    };
 }
 

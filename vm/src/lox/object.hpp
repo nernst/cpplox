@@ -1,14 +1,10 @@
 #pragma once
 
 #include "common.hpp"
+#include "chunk.hpp"
 
 namespace lox
 {
-    enum class ObjectType
-    {
-        STRING,
-    };
-
     class Object;
     class VM;
 
@@ -48,14 +44,11 @@ namespace lox
         friend class VM;
 
     public:
-        Object()
-        : next_{nullptr}
-        { }
-
+        Object();
         Object(Object const&) = delete;
         Object(Object&&) = delete;
 
-        virtual ~Object() = 0;
+        virtual ~Object() noexcept = 0;
 
         Object& operator=(Object const&) = delete;
         Object& operator=(Object&&) = delete;
@@ -67,6 +60,8 @@ namespace lox
         { return !equals(other); }
         
         virtual ObjectType type() const = 0;
+        virtual const char* type_name() const = 0;
+
         virtual bool equals(Object const& other) const {
             return this == &other;
         }
@@ -75,32 +70,38 @@ namespace lox
 
     private:
         // for GC
-        Object* next_;
+        Object* gc_next_;
+
+        static Object* gc_root();
+        static void run_gc();
     };
 
     class String : public Object
     {
     public:
         String()
-        : data_{}
+        : Object{}
+        , data_{}
         , hash_{lox::hash(std::string_view{})}
         {}
 
         template<class StringType>
         explicit String(StringType&& value)
-        : data_{std::forward<StringType>(value)}
+        : Object{}
+        , data_{std::forward<StringType>(value)}
         , hash_{lox::hash(data_)}
         { }
 
         String(String const&) = default;
         String(String&&) = default;
 
-        ~String() override { }
+        ~String() noexcept override { }
 
         String& operator=(String const&) = default;
         String& operator=(String&&) = default;
 
         ObjectType type() const override { return ObjectType::STRING; }
+        const char* type_name() const override { return "String"; }
 
         size_t length() const { return data_.length(); }
         const char* c_str() const { return data_.c_str(); }
@@ -120,5 +121,46 @@ namespace lox
     private:
         std::string data_;
         size_t hash_;
+    };
+
+    class Function : public Object
+    {
+    public:
+        Function()
+        : Object{}
+        , arity_{0}
+        , chunk_{}
+        , name_{nullptr}
+        { }
+        
+        Function(int arity, Chunk&& chunk, String* name)
+        : Object{}
+        , arity_{arity}
+        , chunk_{std::move(chunk)}
+        , name_{name}
+        { }
+
+        Function(Function const&) = delete;
+        Function(Function&&) = delete;
+
+        ~Function() noexcept override {}
+
+        Function& operator=(Function const&) = delete;
+        Function& operator=(Function&&) = delete;
+
+        ObjectType type() const override { return ObjectType::FUNCTION; }
+        const char* type_name() const override { return "Function"; }
+
+        int arity() const { return arity_; }
+        String* name() const { return name_; }
+        Chunk const& chunk() const { return chunk_; }
+        Chunk& chunk() { return chunk_; }
+
+        size_t hash() const override { return reinterpret_cast<size_t>(this); }
+
+    private:
+        int arity_;
+        Chunk chunk_;
+        String* name_;
     };
 }

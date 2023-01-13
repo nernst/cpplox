@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common.hpp"
-#include "object.hpp"
 #include <cassert>
 #include <type_traits>
 #include <variant>
@@ -11,6 +10,8 @@
 
 namespace lox
 {
+    class Object;
+
     class Value
     {
         using value_t = std::variant<
@@ -83,17 +84,22 @@ namespace lox
         bool is_true() const { return bool{*this}; }
         bool is_false() const { return !is_true(); }
         bool is_object() const { return is<Object*>(); }
-        bool is_object_type(ObjectType type) const {
-            Object* obj{nullptr};
-            if (try_get(obj)) {
-                return obj->type() == type;
-            }
-            return false;
-        }
+        bool is_object_type(ObjectType type) const;
 
         bool is_string() const { return is_object_type(ObjectType::STRING); }
+        bool is_function() const { return is_object_type(ObjectType::FUNCTION); }
         bool is_number() const { return is<double>(); }
         bool is_nil() const { return is<nullptr_t>(); }
+
+        template<typename T>
+        T* as_obj() const
+        {
+            Object* obj{nullptr};
+            if (try_get(obj)) {
+                return dynamic_cast<T*>(obj);
+            }
+            return nullptr;
+        }
 
         bool operator==(Value const& other) const;
 
@@ -118,6 +124,8 @@ namespace lox
         template<class Visitor>
         auto apply(Visitor&& vis) const -> decltype(std::visit(vis, value_t{}))
         { return std::visit(vis, value_); }
+
+        std::string type_name() const;
 
     private:
         value_t value_;

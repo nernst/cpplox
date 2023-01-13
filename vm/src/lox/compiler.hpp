@@ -7,5 +7,7 @@
 
 namespace lox
 {
-    bool compile(std::string const& source, Chunk& chunk, std::ostream& stderr);
+    class Function;
+
+    Function* compile(std::string const& source, std::ostream& stderr);
 }

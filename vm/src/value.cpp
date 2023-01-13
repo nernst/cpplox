@@ -6,14 +6,37 @@
 
 namespace lox
 {
-    ValueArray::~ValueArray()
+    bool Value::is_object_type(ObjectType type) const
     {
-        for (auto& value : data_)
-        {
-            Object* obj;
-            if (value.try_get(obj))
-                delete obj;
+        Object* obj{nullptr};
+        if (try_get(obj)) {
+            return obj->type() == type;
         }
+        return false;
+    }
+
+    ValueArray::~ValueArray()
+    { }
+
+    std::string Value::type_name() const
+    {
+        return std::visit([](auto&& v) -> std::string {
+            using T = std::decay_t<decltype(v)>;
+
+            if constexpr(std::is_same_v<T, double>)
+                return "number";
+            else if constexpr(std::is_same_v<T, bool>)
+                return "bool";
+            else if constexpr(std::is_same_v<T, nullptr_t>)
+                return "nil";
+            else if constexpr(std::is_same_v<T, Object*>)
+            {
+                assert(v != nullptr);
+                return fmt::format("Object<{}>", v->type_name());
+            }
+            else
+                static_assert(always_false_v<T>, "non-exhaustive visitor!");
+        }, value_);
     }
   
     bool Value::operator==(Value const& other) const
@@ -38,9 +61,12 @@ namespace lox
 
                 switch(v->type())
                 {
+                    case ObjectType::FUNCTION:
+                        return v == other_obj;
+
                     case ObjectType::STRING:
                         return v == other_obj;
-                        //return static_cast<String const*>(v)->str() == static_cast<String const*>(other_obj)->str();
+                    
                     default:
                         unreachable();
                         return false;
@@ -71,14 +97,27 @@ namespace lox
             }
             else if constexpr(std::is_same_v<T, Object*>)
             {
-                String* s = dynamic_cast<String*>(v);
-                if (s)
+                switch (v->type())
                 {
-                    stream << s->view();
-                }
-                else
-                {
-                    fmt::print(stream, "<Object @{}>", static_cast<void*>(v));
+                    case ObjectType::STRING:
+                        stream << dynamic_cast<String&>(*v).view();
+                        break;
+
+                    case ObjectType::FUNCTION:
+                    {
+                        Function& f = dynamic_cast<Function&>(*v);
+                        if (f.name() == nullptr)
+                        {
+                            stream << "<script>";
+                            return;
+                        }
+                        fmt::print(stream, "<fn {}>", f.name()->view());
+                        break;
+                    }
+                    
+                    default:
+                        fmt::print(stream, "<Object @{}>", static_cast<void*>(v));
+                        break;
                 }
             }
             else

@@ -74,6 +74,12 @@ namespace lox
 		ValueArray const& constants() const { return constants_; }
 		std::vector<size_t> const& lines() const { return lines_; }
 
+		byte* begin() { return &code_.front(); }
+		byte* end() { return begin() + code_.size(); }
+
+		byte const* begin() const { return &code_.front(); }
+		byte const* end() const { return begin() + code_.size(); }
+
 
 	private:
 		std::vector<byte> code_;

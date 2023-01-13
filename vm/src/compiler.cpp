@@ -3,6 +3,7 @@
 #include "lox/debug.hpp"
 #endif
 #include "lox/scanner.hpp"
+#include "lox/object.hpp"
 #include <array>
 #include <iterator>
 #include <sstream>
@@ -23,33 +24,55 @@ namespace lox
             };
 
         public:
-            Compiler(std::string const& source, std::ostream& stderr)
+
+            enum class FunctionType
+            {
+                FUNCTION,
+                SCRIPT,
+            };
+
+            Compiler(std::string const& source, FunctionType function_type, std::ostream& stderr)
             : source_{&source}
             , stderr_{stderr}
             , scanner_{source}
             , had_error_{false}
             , panic_mode_{false}
+            , function_{new Function}
+            , function_type_{function_type}
             , local_count_{0}
             , scope_depth_{0}
-            {}
+            {
+                Local& local = locals_[local_count_++];
+                local.depth = 0;
+                local.name.start = "";
+                local.name.length = 0;
+                local.name.token = {};
+            }
 
-            bool compile()
+            Compiler() = delete;
+            Compiler(Compiler const&) = delete;
+            Compiler(Compiler&&) = delete;
+
+            Compiler& operator=(Compiler const&) = delete;
+            Compiler& operator=(Compiler&&) = delete;
+
+            Function* compile()
             {
                 advance();
                 while (!match(Token::TOKEN_EOF))
                 {
                     declaration();
                 }
-                end();
-                return !had_error_;
+                auto func = end();
+                return had_error_ ? nullptr : func;
             }
-            Chunk& chunk() { return chunk_; }
+
+            Chunk& chunk() { return function_->chunk(); }
 
         private:
             std::string const* source_;
             std::ostream& stderr_;
             Scanner scanner_;
-            Chunk chunk_;
             Token current_;
             Token previous_;
             bool had_error_;
@@ -57,6 +80,8 @@ namespace lox
 
             static constexpr size_t max_locals = static_cast<size_t>(std::numeric_limits<byte>::max()) + 1;
 
+            Function* function_;
+            FunctionType function_type_;
             std::array<Local, max_locals> locals_;
             int local_count_;
             int scope_depth_;
@@ -129,7 +154,7 @@ namespace lox
 
             byte make_constant(Value value)
             {
-                auto constant = chunk_.add_constant(value);
+                auto constant = chunk().add_constant(value);
                 if (constant > std::numeric_limits<byte>::max()) {
                     error("Too many constants in one chunk.");
                     return 0;
@@ -138,7 +163,7 @@ namespace lox
                 return static_cast<byte>(constant);
             }
 
-            void emit(byte value) { chunk_.write(value, previous_.line); }
+            void emit(byte value) { chunk().write(value, previous_.line); }
             void emit(OpCode op) { emit(static_cast<byte>(op)); }
             void emit(OpCode op, byte value) { emit(op); emit(value); }
             void emit_return() { emit(OpCode::OP_RETURN); }
@@ -152,7 +177,7 @@ namespace lox
             {
                 emit(OpCode::OP_LOOP);
 
-                int offset = static_cast<int>(chunk_.code().size()) - loop_start + 2;
+                int offset = static_cast<int>(chunk().code().size()) - loop_start + 2;
                 if (offset > std::numeric_limits<uint16_t>::max())
                 {
                     error("Loop body too large.");
@@ -163,15 +188,15 @@ namespace lox
 
             void patch_jump(int offset)
             {
-                int jump = chunk_.code().size() - offset - 2;
+                int jump = chunk().code().size() - offset - 2;
 
                 if (jump > std::numeric_limits<uint16_t>::max())
                 {
                     error("Too much code to jump over.");
                 }
 
-                chunk_.code()[offset] = static_cast<byte>((jump >> 8) & 0xff);
-                chunk_.code()[offset + 1] = static_cast<byte>(jump & 0xff);
+                chunk().code()[offset] = static_cast<byte>((jump >> 8) & 0xff);
+                chunk().code()[offset + 1] = static_cast<byte>(jump & 0xff);
             }
 
             int emit_jump(OpCode op)
@@ -179,7 +204,7 @@ namespace lox
                 emit(op);
                 emit(0xff);
                 emit(0xff);
-                return chunk_.code().size() - 2;
+                return chunk().code().size() - 2;
             }
 
             void advance()
@@ -217,14 +242,21 @@ namespace lox
                 return true;
             }
 
-            void end()
+            Function* end()
             { 
                 emit_return(); 
 
 #ifdef DEBUG_PRINT_CODE
                 if (!had_error_)
-                    disassemble(stderr_, chunk_, "code");
+                    disassemble(
+                        stderr_, 
+                        chunk(), 
+                        function_->name() 
+                            ? function_->name()->view()
+                            : "<script>"
+                    );
 #endif
+                return function_;
             }
 
             void begin_scope()
@@ -295,7 +327,7 @@ namespace lox
                     expression_statement();
                 }
 
-                int loop_start = static_cast<int>(chunk_.code().size());
+                int loop_start = static_cast<int>(chunk().code().size());
 
                 // condition clause
                 int exit_jump = -1;
@@ -312,7 +344,7 @@ namespace lox
                 if (!match(Token::RIGHT_PAREN))
                 {
                     int body_jump = emit_jump(OpCode::OP_JUMP);
-                    int increment_start = static_cast<int>(chunk_.code().size());
+                    int increment_start = static_cast<int>(chunk().code().size());
 
                     expression();
                     emit(OpCode::OP_POP);
@@ -365,7 +397,7 @@ namespace lox
 
             void while_statement()
             {
-                int loop_start = static_cast<int>(chunk_.code().size());
+                int loop_start = static_cast<int>(chunk().code().size());
                 consume(Token::LEFT_PAREN, "Expect '(' after 'while'.");
                 expression();
                 consume(Token::RIGHT_PAREN, "Expect ')' after condition.");
@@ -753,16 +785,9 @@ namespace lox
         };
 
     }
-    bool compile(std::string const& source, Chunk& chunk, std::ostream& stderr)
+    Function* compile(std::string const& source, std::ostream& stderr)
     {
-        Compiler compiler{source, stderr};
-        bool success = compiler.compile();
-        if (success)
-            chunk = std::move(compiler.chunk());
-
-#ifdef DEBUG_COMPILE
-        fmt::print(stderr, "compile rc = {}\n", success);
-#endif
-        return success;
+        Compiler compiler{source, Compiler::FunctionType::SCRIPT, stderr};
+        return compiler.compile();
     }
 }

@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "value.hpp"
+#include "object.hpp"
 #include <memory>
 
 namespace lox
