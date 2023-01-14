@@ -10,9 +10,11 @@
 
 #include <fmt/format.h>
 
+#if 0
 #define DEBUG_COMPILE
 #define DEBUG_PRINT_CODE
 #define DEBUG_TRACE_EXECUTION
+#endif
 
 namespace lox
 {
@@ -53,6 +55,7 @@ namespace lox
     {
         STRING,
         FUNCTION,
+		NATIVE_FUNCTION,
     };
 }
 

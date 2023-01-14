@@ -97,28 +97,7 @@ namespace lox
             }
             else if constexpr(std::is_same_v<T, Object*>)
             {
-                switch (v->type())
-                {
-                    case ObjectType::STRING:
-                        stream << dynamic_cast<String&>(*v).view();
-                        break;
-
-                    case ObjectType::FUNCTION:
-                    {
-                        Function& f = dynamic_cast<Function&>(*v);
-                        if (f.name() == nullptr)
-                        {
-                            stream << "<script>";
-                            return;
-                        }
-                        fmt::print(stream, "<fn {}>", f.name()->view());
-                        break;
-                    }
-                    
-                    default:
-                        fmt::print(stream, "<Object @{}>", static_cast<void*>(v));
-                        break;
-                }
+                print_object(stream, *v);
             }
             else
                 static_assert(always_false_v<T>, "non-exhaustive visitor!");

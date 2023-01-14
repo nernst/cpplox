@@ -1,5 +1,6 @@
 #include "lox/object.hpp"
 #include <atomic>
+#include "fmt/ostream.h"
 
 namespace lox
 {
@@ -29,13 +30,29 @@ namespace lox
 
     Object::~Object() { }
 
-    void print_object(Object const& object)
+    void print_object(std::ostream& os, Object const& object)
     {
         switch(object.type())
         {
             case ObjectType::STRING:
-                fmt::print("{}", static_cast<String const&>(object).c_str());
+                fmt::print(os, "{}", static_cast<String const&>(object).c_str());
                 break;
+            case ObjectType::NATIVE_FUNCTION:
+                fmt::print(
+                    os, 
+                    "<native fn @{}>", 
+                    static_cast<void const*>(&object)
+                );
+                break;
+            case ObjectType::FUNCTION:
+            {
+                Function const& fun = static_cast<Function const&>(object);
+                if (fun.name())
+                    fmt::print(os, "<fn {}>", fun.name()->view());
+                else
+                    fmt::print(os, "<script>");
+                break;
+            }
             default:
                 unreachable();
                 break;

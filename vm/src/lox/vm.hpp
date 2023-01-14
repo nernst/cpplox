@@ -99,7 +99,7 @@ namespace lox
         VM(std::ostream& stdout = std::cout, std::ostream& stderr = std::cerr)
         : stdout_{&stdout}
         , stderr_{&stderr}
-        { }
+        { init_globals(); }
 
         VM(VM const&) = delete;
         VM(VM&&) = default;
@@ -284,6 +284,29 @@ namespace lox
 
 
             reset();
+        }
+
+        void init_globals();
+
+        void define_native(std::string_view name, NativeFunction::NativeFn function);
+
+        template<typename T>
+        bool numeric_binary_op(T&& op)
+        {
+            Value b = pop();
+            Value a = pop();
+
+            double lhs, rhs;
+            if (!a.try_get(lhs) || !b.try_get(rhs))
+            {
+                runtime_error(
+                    "Operands must be numbers. {{left: {}, right: {}}}", 
+                    peek(1).type_name(),
+                    peek(0).type_name());
+                return false;
+            }
+            push(Value{op(lhs, rhs)});
+            return true;
         }
     };
 }

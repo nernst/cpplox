@@ -1,6 +1,8 @@
 #include "lox/compiler.hpp"
 #include "lox/vm.hpp"
 #include <fmt/format.h>
+#include <ctime>
+#include <functional>
 
 #ifdef DEBUG_TRACE_EXECUTION
 #include "lox/debug.hpp"
@@ -8,6 +10,19 @@
 
 namespace lox
 {
+    namespace {
+        Value clock_native(int, Value*)
+        {
+            return Value{static_cast<double>(std::clock()) / CLOCKS_PER_SEC};
+        }
+
+    }
+
+    void VM::init_globals()
+    {
+        define_native("clock", &clock_native);
+    }
+
     VM::Result VM::interpret(std::string const& source)
     {
         Function* function = compile(source, stderr());
@@ -28,6 +43,15 @@ namespace lox
             {
                 case ObjectType::FUNCTION:
                     return call(dynamic_cast<Function*>(obj), arg_count);
+
+                case ObjectType::NATIVE_FUNCTION:
+                {
+                    auto native = dynamic_cast<NativeFunction*>(obj);
+                    auto result = native->invoke(arg_count, stack_top_ - arg_count);
+                    stack_top_ -= arg_count + 1;
+                    push(result);
+                    return true;
+                }
                 
                 default:
                     break; // non-callable
@@ -60,19 +84,6 @@ namespace lox
     VM::Result VM::run()
     {
         auto frame = current_frame();
-
-        #define BINARY_OP(op) do { \
-            if (!peek(0).is<double>() || !peek(1).is<double>()) { \
-                runtime_error(\
-                    "Operands must be numbers. {{left: {}, right: {}}}", \
-                    peek(1).type_name(), \
-                    peek(0).type_name()); \
-                return Result::RUNTIME_ERROR; \
-            } \
-            Value b = pop(); \
-            Value a = pop(); \
-            push(Value(a.get<double>() op b.get<double>())); \
-        } while (false)
 
         while (true)
         {
@@ -168,36 +179,39 @@ namespace lox
 
                 case OpCode::OP_ADD:
                     {
+                        // ORDER MATTERS!
+                        Value rhs{pop()};
+                        Value lhs{pop()};
+
                         #ifdef DEBUG_TRACE_EXECUTION
                         // fmt::print(stderr(), "** OP_ADD - begin\n");
                         #endif
 
-                        if (peek(0).is_string() && peek(1).is_string())
+                        if (lhs.is_string() && rhs.is_string())
                         {
-                            // ORDER MATTERS!
-                            Value v_rhs{pop()};
-                            Value v_lhs{pop()};
 
-                            String* lhs = dynamic_cast<String*>(v_lhs.get<Object*>()); 
-                            String* rhs = dynamic_cast<String*>(v_rhs.get<Object*>());
-                            assert(lhs && "Expected String*!");
-                            assert(rhs && "Expected String*!");
+                            String* s_lhs = dynamic_cast<String*>(lhs.get<Object*>()); 
+                            String* s_rhs = dynamic_cast<String*>(rhs.get<Object*>());
+                            assert(s_lhs && "Expected String*!");
+                            assert(s_rhs && "Expected String*!");
 
                             #ifdef DEBUG_TRACE_EXECUTION
                             // fmt::print(stderr(), "** OP_ADD, lhs=[{}], rhs=[{}]\n", lhs->str(), rhs->str());
                             #endif
 
-                            push(Value(allocate<String>(lhs->str() + rhs->str())));
+                            push(Value(allocate<String>(s_lhs->str() + s_rhs->str())));
                         }
-                        else if (peek(0).is_number() && peek(1).is_number())
+                        else if (lhs.is_number() && rhs.is_number())
                         {
-                            Value lhs{pop()};
-                            Value rhs{pop()};
                             push(Value{lhs.get<double>() + rhs.get<double>()});
                         }
                         else
                         {
-                            runtime_error("Operands must be two numbers or two strings.");
+                            runtime_error(
+                                "Operands must be two numbers or two strings, not {} and {}.", 
+                                lhs.type_name(), 
+                                rhs.type_name()
+                            );
                             return Result::RUNTIME_ERROR;
                         }
 
@@ -208,14 +222,39 @@ namespace lox
                     }
                     break;
 
-                case OpCode::OP_SUBTRACT: BINARY_OP(-); break;
-                case OpCode::OP_MULTIPLY: BINARY_OP(*); break;
-                case OpCode::OP_DIVIDE: BINARY_OP(/); break;
+                case OpCode::OP_SUBTRACT:
+                    if (!numeric_binary_op(std::minus<>()))
+                        return Result::RUNTIME_ERROR;
+                    break;
 
-                case OpCode::OP_NOT: push(Value(!bool{pop()})); break;
-                case OpCode::OP_EQUAL: push(Value(pop() == pop())); break;
-                case OpCode::OP_LESS: BINARY_OP(<); break;
-                case OpCode::OP_GREATER: BINARY_OP(>); break;
+                case OpCode::OP_MULTIPLY:
+                    if (!numeric_binary_op(std::multiplies<>()))
+                        return Result::RUNTIME_ERROR;
+                    break;
+
+                case OpCode::OP_DIVIDE:
+                    if (!numeric_binary_op(std::divides<>()))
+                        return Result::RUNTIME_ERROR;
+                    break;
+
+
+                case OpCode::OP_NOT:
+                    push(Value(!bool{pop()}));
+                    break;
+
+                case OpCode::OP_EQUAL:
+                    push(Value(pop() == pop()));
+                    break;
+
+                case OpCode::OP_LESS:
+                    if (!numeric_binary_op(std::less<>()))
+                        return Result::RUNTIME_ERROR;
+                    break;
+
+                case OpCode::OP_GREATER:
+                    if (!numeric_binary_op(std::greater<>()))
+                        return Result::RUNTIME_ERROR;
+                    break;
 
                 case OpCode::OP_NEGATE:
                     if (!peek(0).is<double>()) {
@@ -277,6 +316,15 @@ namespace lox
                 }
             }
         }
-        #undef BINARY_OP
+    }
+
+    void VM::define_native(std::string_view name, NativeFunction::NativeFn function)
+    {
+        push(Value{new String{name}});
+        push(Value{new NativeFunction{function}});
+        auto&& s = static_cast<String*>(peek(1).get<Object*>());
+        globals_.add(s, peek(0));
+        pop();
+        pop();
     }
 }

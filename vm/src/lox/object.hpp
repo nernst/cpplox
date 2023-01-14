@@ -2,13 +2,14 @@
 
 #include "common.hpp"
 #include "chunk.hpp"
+#include <iosfwd>
 
 namespace lox
 {
     class Object;
     class VM;
 
-    void print_object(Object const& object);
+    void print_object(std::ostream& stream, Object const& object);
 
     template<typename It>
     constexpr size_t hash(It begin, It end)
@@ -178,5 +179,36 @@ namespace lox
         unsigned arity_;
         Chunk chunk_;
         String* name_;
+    };
+
+    class NativeFunction : public Object
+    {
+    public:
+        using NativeFn = Value (*)(int, Value*);
+
+        NativeFunction() = delete;
+        NativeFunction(NativeFunction const&) = delete;
+        NativeFunction(NativeFunction&&) = delete;
+
+        explicit NativeFunction(NativeFn native)
+        : Object{}
+        , native_{native}
+        {}
+
+        ~NativeFunction() noexcept override {}
+
+        NativeFunction& operator=(NativeFunction const&) = delete;
+        NativeFunction& operator=(NativeFunction&&) = delete;
+
+        ObjectType type() const override { return ObjectType::NATIVE_FUNCTION; }
+        const char* type_name() const override { return "NativeFunction"; }
+
+        size_t hash() const override { return reinterpret_cast<size_t>(this); }
+
+        Value invoke(int arg_count, Value* args) const
+        { return native_(arg_count, args); }
+
+    private:
+        NativeFn native_;
     };
 }
