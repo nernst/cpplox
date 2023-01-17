@@ -30,7 +30,10 @@ namespace lox
             return Result::COMPILE_ERROR;
         
         push(Value{function});
-        call(function, 0);
+        Closure* closure{new Closure(function)};
+        pop();
+        push(Value{closure});
+        call(closure, 0);
         return run();
     }
 
@@ -41,9 +44,6 @@ namespace lox
         {
             switch(obj->type())
             {
-                case ObjectType::FUNCTION:
-                    return call(dynamic_cast<Function*>(obj), arg_count);
-
                 case ObjectType::NATIVE_FUNCTION:
                 {
                     auto native = dynamic_cast<NativeFunction*>(obj);
@@ -52,6 +52,9 @@ namespace lox
                     push(result);
                     return true;
                 }
+
+                case ObjectType::CLOSURE:
+                    return call(dynamic_cast<Closure*>(obj), arg_count);
                 
                 default:
                     break; // non-callable
@@ -62,13 +65,50 @@ namespace lox
         return false;
     }
 
-    bool VM::call(Function* function, byte arg_count)
+    ObjUpvalue* VM::capture_upvalue(Value* local)
     {
-        assert(function);
+        assert(local);
 
-        if (arg_count != function->arity())
+        ObjUpvalue* prev = nullptr;
+        ObjUpvalue* upvalue = open_upvalues_;
+
+        while (upvalue != nullptr && upvalue->location() > local)
         {
-            runtime_error("Expected {} arguments but got {}.", function->arity(), arg_count);
+            prev = upvalue;
+            upvalue = upvalue->next_;
+        }
+        
+        if (upvalue != nullptr && upvalue->location() == local)
+            return upvalue;
+
+        auto new_upvalue = new ObjUpvalue{local};
+        new_upvalue->next_ = upvalue;
+
+        if (prev == nullptr)
+            open_upvalues_ = new_upvalue;
+        else
+            prev->next_ = new_upvalue;
+
+        return new_upvalue;
+    }
+
+    void VM::close_upvalues(Value* last)
+    {
+        while (open_upvalues_ != nullptr && open_upvalues_->location() >= last)
+        {
+            auto upvalue = open_upvalues_;
+            upvalue->close();
+            open_upvalues_ = upvalue->next_;
+        }
+    }
+
+    bool VM::call(Closure* closure, byte arg_count)
+    {
+        assert(closure);
+
+        if (arg_count != closure->function()->arity())
+        {
+            runtime_error("Expected {} arguments but got {}.", closure->function()->arity(), arg_count);
             return false;
         }
         if (frame_count_ == frames_max)
@@ -77,7 +117,7 @@ namespace lox
             return false;
         }
 
-        push_frame(function, arg_count);
+        push_frame(closure, arg_count);
         return true;
     }
 
@@ -183,10 +223,6 @@ namespace lox
                         Value rhs{pop()};
                         Value lhs{pop()};
 
-                        #ifdef DEBUG_TRACE_EXECUTION
-                        // fmt::print(stderr(), "** OP_ADD - begin\n");
-                        #endif
-
                         if (lhs.is_string() && rhs.is_string())
                         {
 
@@ -194,10 +230,6 @@ namespace lox
                             String* s_rhs = dynamic_cast<String*>(rhs.get<Object*>());
                             assert(s_lhs && "Expected String*!");
                             assert(s_rhs && "Expected String*!");
-
-                            #ifdef DEBUG_TRACE_EXECUTION
-                            // fmt::print(stderr(), "** OP_ADD, lhs=[{}], rhs=[{}]\n", lhs->str(), rhs->str());
-                            #endif
 
                             push(Value(allocate<String>(s_lhs->str() + s_rhs->str())));
                         }
@@ -214,11 +246,6 @@ namespace lox
                             );
                             return Result::RUNTIME_ERROR;
                         }
-
-                        #ifdef DEBUG_TRACE_EXECUTION
-                        // fmt::print(stderr(), "** OP_ADD end\n");
-                        #endif
-
                     }
                     break;
 
@@ -241,6 +268,20 @@ namespace lox
                 case OpCode::OP_NOT:
                     push(Value(!bool{pop()}));
                     break;
+
+                case OpCode::OP_GET_UPVALUE:
+                {
+                    byte slot = read_byte();
+                    push(*frame->closure()->upvalues()[slot]->location());
+                    break;
+                }
+
+                case OpCode::OP_SET_UPVALUE:
+                {
+                    byte slot = read_byte();
+                    *frame->closure()->upvalues()[slot]->location() = peek(0);
+                    break;
+                }
 
                 case OpCode::OP_EQUAL:
                     push(Value(pop() == pop()));
@@ -301,10 +342,32 @@ namespace lox
                     break;
                 }
 
+                case OpCode::OP_CLOSURE:
+                {
+                    auto value = read_constant();
+                    Function* function = value.get<Function*>();
+                    Closure* closure{new Closure(function)};
+                    push(Value{closure});
+                    for (unsigned i = 0; i < closure->upvalue_count(); ++i)
+                    {
+                        byte is_local = read_byte();
+                        byte index = read_byte();
+                        closure->upvalues()[i] = is_local
+                            ? capture_upvalue(frame->slots() + index)
+                            : frame->closure()->upvalues()[index];
+                    }
+                    break;
+                }
+
+                case OpCode::OP_CLOSE_UPVALUE:
+                    close_upvalues(stack_top_ - 1);
+                    pop();
+                    break;
 
                 case OpCode::OP_RETURN:
                 {
                     auto result = pop();
+                    close_upvalues(frame->slots());
                     frame = pop_frame();
                     if (frame == nullptr)
                     {

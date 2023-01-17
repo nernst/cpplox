@@ -13,23 +13,23 @@ namespace lox
 {
     class CallFrame
     {
-        Function* function_;
+        Closure* closure_;
         byte* ip_;
         byte* ip_begin_;
         byte* ip_end_;
         Value* slots_;
 
     public:
-        explicit CallFrame(Function* function = nullptr, Value* slots = nullptr)
-        : function_{function}
+        explicit CallFrame(Closure* closure = nullptr, Value* slots = nullptr)
+        : closure_{closure}
         , ip_{nullptr}
         , ip_begin_{nullptr}
         , ip_end_{nullptr}
         , slots_{slots}
         {
-            if (function)
+            if (closure)
             {
-                auto& chunk = function->chunk();
+                auto& chunk = closure->function()->chunk();
                 ip_ = ip_begin_ = chunk.begin();
                 ip_end_ = chunk.end();
                 assert(slots);
@@ -44,15 +44,20 @@ namespace lox
         CallFrame& operator=(CallFrame const&) = default;
         CallFrame& operator=(CallFrame&&) = default;
 
-        Function* function() const { return function_; }
+        Closure* closure() const { return closure_; }
+        Function* function() const
+        {
+            assert(closure_);
+            return closure_->function();
+        }
+
         Value* slots() const { return slots_; }
         byte*& ip() { return ip_; }
         size_t pc() const { return static_cast<size_t>(ip_ - ip_begin_); }
 
         Chunk& chunk() const
         {
-            assert(function_);
-            return function_->chunk();
+            return function()->chunk();
         }
 
         byte read_byte()
@@ -74,13 +79,13 @@ namespace lox
 
         Value read_constant() {
             const byte offset{read_byte()};
-            return function_->chunk().constants()[offset]; 
+            return chunk().constants()[offset]; 
         }
 
         String* read_string()
         {
             auto value = read_constant();
-            return dynamic_cast<String*>(value.get<Object*>());
+            return value.get<String*>();
         }
     };
 
@@ -146,6 +151,7 @@ namespace lox
             stack_ = {};
             stack_top_ = stack_.begin();
             frame_count_ = 0;
+            open_upvalues_ = nullptr;
         }
 
     private:
@@ -153,6 +159,7 @@ namespace lox
         size_t frame_count_ = 0;
         std::array<Value, stack_max> stack_;
         Value* stack_top_ = &stack_[0];
+        ObjUpvalue* open_upvalues_ = nullptr;
 
         Object* objects_ = nullptr;
         Map strings_;
@@ -166,7 +173,7 @@ namespace lox
             return &frames_[frame_count_ - 1];
         }
 
-        CallFrame* push_frame(Function* function, byte arg_count)
+        CallFrame* push_frame(Closure* closure, byte arg_count)
         {
             if (frame_count_ == frames_max)
             {
@@ -174,7 +181,7 @@ namespace lox
                 return nullptr;
             }
 
-            frames_[frame_count_++] = CallFrame{function, stack_top_ - arg_count - 1};
+            frames_[frame_count_++] = CallFrame{closure, stack_top_ - arg_count - 1};
             return current_frame();
         }
 
@@ -186,20 +193,14 @@ namespace lox
                 return nullptr;
             }
 
-            // #define CLEAR_STACK
-
             auto slots_end = current_frame()->slots();
+            close_upvalues(slots_end);
             frames_[--frame_count_] = CallFrame{};
             if (frame_count_ == 0)
                 return nullptr;
 
             auto current = current_frame();
             stack_top_ = slots_end;
-            
-            #ifdef CLEAR_STACK
-            for (auto p = stack_top_; p != slots_end; ++p)
-                *p = {};
-            #endif
 
             return current;
         }
@@ -230,7 +231,7 @@ namespace lox
         Result run();
 
         bool call_value(Value callee, byte arg_count);
-        bool call(Function* function, byte arg_count);
+        bool call(Closure* closure, byte arg_count);
 
         byte read_byte()
         {
@@ -308,5 +309,8 @@ namespace lox
             push(Value{op(lhs, rhs)});
             return true;
         }
+
+        ObjUpvalue* capture_upvalue(Value* local);
+        void close_upvalues(Value* last);
     };
 }

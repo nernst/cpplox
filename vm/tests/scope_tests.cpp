@@ -1,6 +1,6 @@
 #include "test_utils.hpp"
 
-BOOST_AUTO_TEST_CASE(variable_shadowing)
+BOOST_AUTO_TEST_CASE(variable_shadowing_test)
 {
     const auto test = R"test(
 var a = 1;

@@ -98,3 +98,46 @@ print function("pa", "ss");
     assert_equal(out, expected);
 }
 
+BOOST_AUTO_TEST_CASE(func_reference_outer_scope_test)
+{
+    const auto test = R"test(
+fun outer() {
+    var x = "pass";
+    fun inner() {
+        print x;
+    }
+    return inner;
+}
+var closure = outer();
+closure();
+    )test"s;
+    const auto expected = "pass"s;
+
+    auto [res, out, err] = run_test(test);
+    assert_equal(res, lox::VM::Result::OK);
+    assert_equal(out, expected);
+}
+
+BOOST_AUTO_TEST_CASE(func_simple_closure_test)
+{
+    const auto test = R"test(
+fun outer(a)
+{
+    var b = "world";
+    fun inner(c)
+    {
+        print a + " " + b + " " + c + "!";
+    }
+    return inner;
+
+}
+var closure = outer("hello");
+closure("from lox");
+    )test"s;
+    const auto expected = "hello world from lox!"s;
+
+    auto [res, out, err] = run_test(test);
+    assert_equal(res, lox::VM::Result::OK);
+    assert_equal(out, expected);
+}
+

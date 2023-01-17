@@ -3,10 +3,12 @@
 #include "common.hpp"
 #include "chunk.hpp"
 #include <iosfwd>
+#include <memory>
 
 namespace lox
 {
     class Object;
+    class ObjUpvalue;
     class VM;
 
     void print_object(std::ostream& stream, Object const& object);
@@ -128,25 +130,19 @@ namespace lox
     {
     public:
         static constexpr unsigned max_parameters = 255;
+        static constexpr unsigned max_upvalues = max_parameters;
 
-        Function()
-        : Object{}
-        , arity_{0}
-        , chunk_{}
-        , name_{nullptr}
-        { }
-        
-        Function(unsigned arity, Chunk&& chunk, String* name)
+        Function() = default;
+        Function(unsigned arity, unsigned upvalues, Chunk&& chunk, String* name)
         : Object{}
         , arity_{arity}
         , chunk_{std::move(chunk)}
         , name_{name}
+        , upvalues_{upvalues}
         { }
 
         explicit Function(String* name)
         : Object{}
-        , arity_{0}
-        , chunk_{}
         , name_{name}
         { }
 
@@ -169,6 +165,15 @@ namespace lox
             arity_ = value;
         }
 
+        unsigned upvalues() const { return upvalues_; }
+
+        void upvalues(unsigned value)
+        {
+            assert(value <= max_upvalues);
+            upvalues_ = value;
+        }
+
+
         String* name() const { return name_; }
         Chunk const& chunk() const { return chunk_; }
         Chunk& chunk() { return chunk_; }
@@ -176,9 +181,10 @@ namespace lox
         size_t hash() const override { return reinterpret_cast<size_t>(this); }
 
     private:
-        unsigned arity_;
+        unsigned arity_ = 0;
         Chunk chunk_;
-        String* name_;
+        String* name_ = nullptr;
+        unsigned upvalues_ = 0;
     };
 
     class NativeFunction : public Object
@@ -210,5 +216,81 @@ namespace lox
 
     private:
         NativeFn native_;
+    };
+
+
+    class Closure : public Object
+    {
+    public:
+        explicit Closure(Function* function)
+        : Object{}
+        , function_{function}
+        , upvalue_count_{assert_not_null(function)->upvalues()}
+        , upvalues_{upvalue_count_ == 0 ? nullptr : new ObjUpvalue*[upvalue_count_]{nullptr}}
+        { }
+
+        Closure() = delete;
+        Closure(Closure const&) = delete;
+        Closure(Closure&&) = delete;
+
+        ~Closure() noexcept override {}
+
+        Closure& operator=(Closure const&) = delete;
+        Closure& operator=(Closure&&) = delete;
+
+        Function* function() const { return function_; }
+        unsigned upvalue_count() const { return upvalue_count_; }
+        ObjUpvalue** upvalues() const { return upvalues_.get(); }
+
+        ObjectType type() const override { return ObjectType::CLOSURE; }
+        const char* type_name() const override { return "Closure"; }
+
+        size_t hash() const override { return reinterpret_cast<size_t>(this); }
+
+    private:
+        Function* function_;
+        unsigned upvalue_count_;
+        std::unique_ptr<ObjUpvalue*[]> upvalues_;
+    };
+
+    class ObjUpvalue : public Object
+    {
+    public:
+        explicit ObjUpvalue(Value* location)
+        : Object{}
+        , location_{location}
+        { assert(location); }
+
+        ObjUpvalue() = delete;
+        ObjUpvalue(ObjUpvalue const&) = delete;
+        ObjUpvalue(ObjUpvalue&&) = delete;
+
+        ~ObjUpvalue() noexcept override {}
+
+        ObjUpvalue& operator=(ObjUpvalue const&) = delete;
+        ObjUpvalue& operator=(ObjUpvalue&&) = delete;
+
+        Value* location() const { return location_; }
+
+        void close()
+        {
+            if (location_ == &closed_)
+                return;
+
+            closed_ = std::move(*location_);
+            location_ = &closed_;
+        }
+
+        ObjectType type() const override { return ObjectType::OBJUPVALUE; }
+        const char* type_name() const override { return "ObjUpvalue"; }
+
+        size_t hash() const override { return reinterpret_cast<size_t>(this); }
+
+    private:
+        Value* location_; 
+        Value closed_;
+        ObjUpvalue* next_ = nullptr;
+
+        friend class VM;
     };
 }

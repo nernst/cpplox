@@ -7,10 +7,14 @@
 #include <vector>
 #include <iosfwd>
 
-
 namespace lox
 {
     class Object;
+
+    template<typename T>
+    inline constexpr bool is_obj_ptr_convertible_v = 
+        std::is_pointer_v<T>
+        && std::is_convertible_v<T, Object*>;
 
     class Value
     {
@@ -107,10 +111,36 @@ namespace lox
         { return value_ != other.value_; }
 
         template<typename T>
-        bool is() const { return std::holds_alternative<T>(value_); }
+        bool is() const
+        {
+            if constexpr(is_obj_ptr_convertible_v<T>)
+            {
+                if (!std::holds_alternative<T>(value_))
+                    return false;
+
+                if constexpr(std::is_same_v<T, Object*>)
+                    return true;
+                else
+                {
+                    auto ptr = std::get<Object*>(value_);
+                    return nullptr != dynamic_cast<T>(ptr);
+                }
+            }
+            else
+                return std::holds_alternative<T>(value_);
+        }
 
         template<typename T>
-        T get() const { return std::get<T>(value_); }
+        T get() const 
+        {
+            if constexpr (is_obj_ptr_convertible_v<T>)
+            {
+                Object* ptr = std::get<Object*>(value_);
+                return dynamic_cast<T>(ptr);
+            }
+            else
+                return std::get<T>(value_);
+        }
 
         template<typename T>
         bool try_get(T& out) const {

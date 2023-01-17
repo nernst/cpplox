@@ -128,6 +128,7 @@ debug:  $(DBG_DIR)/$(PROGRAM) unittest
 
 release: $(REL_DIR)/$(PROGRAM) unittest
 
+# NOTE: to suppress leak detection: `export ASAN_OPTIONS=detect_leaks=0`
 unittest: $(TST_DIR)/$(UNITTEST)
 	$(TST_DIR)/unittest
 

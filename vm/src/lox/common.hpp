@@ -21,6 +21,12 @@ namespace lox
 	using byte = std::uint8_t;
 	using std::size_t;
 
+	template<typename T> requires std::is_pointer_v<T>
+	T assert_not_null(T ptr)
+	{
+		assert(ptr != nullptr);
+		return ptr;
+	}
 
 	template<typename T>
 	void ignore(T&&...) { }
@@ -56,6 +62,8 @@ namespace lox
         STRING,
         FUNCTION,
 		NATIVE_FUNCTION,
+		CLOSURE,
+		OBJUPVALUE,
     };
 }
 

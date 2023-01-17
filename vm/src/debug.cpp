@@ -1,4 +1,5 @@
 #include "lox/debug.hpp"
+#include "lox/object.hpp"
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
@@ -42,6 +43,7 @@ namespace lox
     void disassemble(std::ostream& stream, Chunk const& chunk, std::string_view name)
     {
         fmt::print(stream, "== {} ==\n", name);
+        fmt::print(stream, "[{:#02x}]\n", fmt::join(chunk.code(), ", "));
 
         for (size_t offset = 0; offset < chunk.code().size(); )
         {
@@ -100,6 +102,12 @@ namespace lox
             case OpCode::OP_SET_GLOBAL:
                 return constant(stream, chunk, "OP_SET_GLOBAL", offset);
 
+            case OpCode::OP_GET_UPVALUE:
+                return byte_instruction(stream, chunk, "OP_GET_UPVALUE", offset);
+            
+            case OpCode::OP_SET_UPVALUE:
+                return byte_instruction(stream, chunk, "OP_SET_UPVALUE", offset);
+
             case OpCode::OP_EQUAL:
                 return simple(stream, chunk, "OP_EQUAL", offset);
 
@@ -141,6 +149,36 @@ namespace lox
 
             case OpCode::OP_CALL:
                 return byte_instruction(stream, chunk, "OP_CALL", offset);
+
+            case OpCode::OP_CLOSURE:
+            {
+                ++offset;
+                byte constant = chunk.code()[offset++];
+                fmt::print(stream, "{:<16} {:4} ", "OP_CLOSURE", constant);
+                print_value(stream, chunk.constants()[constant]);
+                fmt::print(stream, "\n");
+                auto function = chunk.constants()[constant].get<Function*>();
+                auto const& code = chunk.code();
+                fmt::print(stream, "[\n");
+                for (unsigned i = 0; i < function->upvalues(); ++i)
+                {
+                    byte is_local = code[offset++];
+                    byte index = code[offset++];
+                    fmt::print(
+                        stream,
+                        "{:4} | {} {}\n",
+                        offset - 2,
+                        is_local ? "local" : "upvalue",
+                        index
+                    );
+                }
+                fmt::print(stream, "]\n");
+
+                return offset;
+            }
+
+            case OpCode::OP_CLOSE_UPVALUE:
+                return simple(stream, chunk, "OP_CLOSE_UPVALUE", offset);
 
             case OpCode::OP_RETURN:
                 return simple(stream, chunk, "OP_RETURN", offset);

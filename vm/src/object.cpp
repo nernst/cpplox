@@ -37,6 +37,7 @@ namespace lox
             case ObjectType::STRING:
                 fmt::print(os, "{}", static_cast<String const&>(object).c_str());
                 break;
+
             case ObjectType::NATIVE_FUNCTION:
                 fmt::print(
                     os, 
@@ -44,6 +45,7 @@ namespace lox
                     static_cast<void const*>(&object)
                 );
                 break;
+
             case ObjectType::FUNCTION:
             {
                 Function const& fun = static_cast<Function const&>(object);
@@ -53,6 +55,18 @@ namespace lox
                     fmt::print(os, "<script>");
                 break;
             }
+
+            case ObjectType::CLOSURE:
+            {
+                Closure const& closure = static_cast<Closure const&>(object);
+                print_object(os, *closure.function());
+                break;
+            }
+
+            case ObjectType::OBJUPVALUE:
+                fmt::print(os, "<upvalue>");
+                break;
+
             default:
                 unreachable();
                 break;

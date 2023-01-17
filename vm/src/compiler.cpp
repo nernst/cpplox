@@ -6,10 +6,14 @@
 #include "lox/object.hpp"
 #include <array>
 #include <iterator>
+#include <list>
 #include <sstream>
 #include <unordered_map>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
+
+// #define TRACE_COMPILE
+
 
 namespace lox
 {
@@ -20,7 +24,26 @@ namespace lox
             struct Local
             {
                 Token name;
-                int depth;
+                int depth = 0;
+                bool is_captured = false;
+            };
+
+            struct Upvalue
+            {
+                Upvalue(byte index, bool is_local)
+                : index{index}
+                , is_local{is_local}
+                { }
+
+                Upvalue() = default;
+                Upvalue(Upvalue const&) = default;
+                Upvalue(Upvalue&&) = default;
+
+                Upvalue& operator=(Upvalue const&) = default;
+                Upvalue& operator=(Upvalue&&) = default;
+
+                byte index = 0;
+                bool is_local = false;
             };
 
         public:
@@ -76,24 +99,19 @@ namespace lox
 
             struct State
             {
-                Function* function_;
-                FunctionType function_type_;
-                std::array<Local, max_locals> locals_;
-                int local_count_;
-                int scope_depth_;
+                State* enclosing_ = nullptr;
+                Function* function_ = nullptr;
+                FunctionType function_type_ = FunctionType::INVALID;
+                int scope_depth_ = 0;
+                std::vector<Upvalue> upvalues_;
+                std::vector<Local> locals_;
 
-                State()
-                : function_{nullptr}
-                , function_type_{FunctionType::INVALID}
-                , local_count_{0}
-                , scope_depth_{0}
-                { }
+                State() = default;
 
-                State(FunctionType type, String* name = nullptr)
-                : function_{new Function(name)}
+                State(FunctionType type, String* name = nullptr, State* enclosing = nullptr)
+                : enclosing_{enclosing}
+                , function_{new Function(name)}
                 , function_type_{type}
-                , local_count_{0}
-                , scope_depth_{0}
                 { }
 
                 State(State const&) = default;
@@ -113,40 +131,60 @@ namespace lox
                     {
                         os << (state.function_->name() ? state.function_->name()->view() : "<script>")
                             << ", scope depth: " << state.scope_depth_
-                            << ", locals: " << state.local_count_ << " [";
+                            << ", enclosing: " << static_cast<void*>(state.enclosing_)
+                            << ",\n\tlocals: " << state.locals_.size() << " [";
                         
-                        for (int i = 0; i < state.local_count_; ++i)
+                        for (auto&& local : state.locals_)
                         {
-                            os << "{" << state.locals_[i].name.token 
-                                << ", depth=" << state.locals_[i].depth << "}, ";
+                            os << "{" << local.name.token 
+                                << ", depth=" << local.depth << "}, ";
                         }
-                    }
+                        os << "],\n\tupvalues: [";
+
+                        for (auto&& upvalue : state.upvalues_)
+                        {
+                            os << "{index=" << static_cast<unsigned>(upvalue.index)
+                                << ", is_local=" << upvalue.is_local << "}, ";
+                        }
+                        os << "]";
+                }
                     os << "}";
 
                     return os;
                 }
             };
 
-            std::vector<State> state_;
+            std::list<State> state_;
 
-            void push_state(FunctionType type)
+            State& push_state(FunctionType type)
             {
                 if (type == FunctionType::SCRIPT)
                     state_.emplace_back(type);
                 else
-                    state_.emplace_back(type, new String(previous_.token));
+                {
+                    assert(!state_.empty());
+                    state_.emplace_back(type, new String(previous_.token), &state_.back());
+                }
 
-                Local& local = current().locals_[current().local_count_++];
-                local.depth = 0;
-                local.name.start = "";
-                local.name.length = 0;
-                local.name.token = {};
+                current().locals_.emplace_back(Token{}, 0, false);
+
+                #ifdef TRACE_COMPILE
+                stderr_ << "** push state: depth=" << state_.size()
+                    << ", type = " << (type == FunctionType::SCRIPT ? "SCRIPT" : "FUNCTION") << std::endl;
+                #endif
+
+                return state_.back();
             }
 
-            void pop_state()
+            std::vector<Upvalue> pop_state()
             {
                 assert(!state_.empty());
+                #ifdef TRACE_COMPILE
+                stderr_ << "** pop state: depth=" << state_.size() << std::endl;
+                #endif
+                auto ret = std::move(state_.back().upvalues_);
                 state_.pop_back();
+                return ret;
             }
 
             State& current() { return state_.back(); }
@@ -241,7 +279,6 @@ namespace lox
             void emit(Value value)
             {
                 const byte id{make_constant(value)};
-                // fmt::print("emit: constant - {}\n", id);
                 emit(OpCode::OP_CONSTANT, id); 
             }
 
@@ -333,7 +370,10 @@ namespace lox
 #ifdef DEBUG_PRINT_CODE
                 stderr_ << state_.back() << std::endl;
 #endif
-                pop_state();
+#ifdef TRACE_COMPILE
+                stderr_ << "* end() - upvalues: " << current().upvalues_.size() << std::endl;
+#endif
+                func->upvalues(current().upvalues_.size());
                 return func;
             }
 
@@ -344,16 +384,25 @@ namespace lox
 
             void end_scope()
             {
-                --current().scope_depth_;
+                auto& scope = current();
+                --scope.scope_depth_;
 
-                while (
-                    current().local_count_ > 0
-                    && current().locals_[current().local_count_ - 1].depth > current().scope_depth_
-                    )
+                size_t i = scope.locals_.size();
+                for ( ; i != 0; --i)
                 {
-                    emit(OpCode::OP_POP);
-                    --current().local_count_;
+                    auto& local = scope.locals_[i - 1];
+                    if (local.depth <= scope.scope_depth_)
+                        break;
+                    
+                    if (local.is_captured)
+                        emit(OpCode::OP_CLOSE_UPVALUE);
+                    else
+                        emit(OpCode::OP_POP);
                 }
+
+                auto iter = std::begin(scope.locals_);
+                std::advance(iter, i);
+                scope.locals_.erase(iter, std::end(scope.locals_));
             }
 
             void expression()
@@ -372,7 +421,8 @@ namespace lox
 
             void function(FunctionType type)
             {
-                push_state(type);
+                State& state = push_state(type);
+
                 begin_scope();
                 consume(Token::LEFT_PAREN, "Expect '(' after function name.");
                 if (!check(Token::RIGHT_PAREN))
@@ -389,15 +439,21 @@ namespace lox
                         define_variable(constant);
                     } while (match(Token::COMMA));
 
-                    current().function_->arity(arity);
+                    state.function_->arity(arity);
                 }
                 consume(Token::RIGHT_PAREN, "Expect ')' after parameters.");
                 consume(Token::LEFT_BRACE, "Expect '{' after function body.");
                 block();
 
                 auto function = end();
+                auto upvalues = pop_state();
 
-                emit(OpCode::OP_CONSTANT, make_constant(Value{function}));
+                emit(OpCode::OP_CLOSURE, make_constant(Value{function}));
+                for (auto&& upvalue : upvalues)
+                {
+                    emit(static_cast<byte>(upvalue.is_local ? 1 : 0));
+                    emit(upvalue.index);
+                }
             }
 
             void fun_declaration()
@@ -649,16 +705,34 @@ namespace lox
 
             void named_variable(Token const& name, bool can_assign)
             {
+                #ifdef TRACE_COMPILE
+                stderr_ << "** named_variable: " << name.token << ", can_assign: " << can_assign << std::endl;
+                #endif
+
                 OpCode get_op, set_op;
                 int arg = resolve_local(name);
                 if (arg != -1)
                 {
+                    #ifdef TRACE_COMPILE
+                    stderr_ << "*** resolve_local: " << arg << std::endl;
+                    #endif
                     get_op = OpCode::OP_GET_LOCAL;
                     set_op = OpCode::OP_SET_LOCAL;
+                }
+                else if ((arg = resolve_upvalue(name)) != -1)
+                {
+                    #ifdef TRACE_COMPILE
+                    stderr_ << "*** resolve_upvalue: " << arg << std::endl;
+                    #endif
+                    get_op = OpCode::OP_GET_UPVALUE;
+                    set_op = OpCode::OP_SET_UPVALUE;
                 }
                 else
                 {
                     arg = identifier_constant(name);
+                    #ifdef TRACE_COMPILE
+                    stderr_ << "*** identifier_constant: " << arg << std::endl;
+                    #endif
                     get_op = OpCode::OP_GET_GLOBAL;
                     set_op = OpCode::OP_SET_GLOBAL;
                 }
@@ -761,18 +835,89 @@ namespace lox
                 return lhs.token == rhs.token;
             }
 
-            int resolve_local(Token const& name)
+            int resolve_local(Token const& name, State* scope = nullptr)
             {
-                for (int i = current().local_count_ - 1; i >= 0; --i)
+                if (scope == nullptr)
+                    scope = &current();
+
+                #ifdef TRACE_COMPILE
+                stderr_ << "** resolve_local: " << name.token << std::endl << *scope << std::endl;
+                #endif
+
+                for (int i = static_cast<int>(scope->locals_.size()) - 1; i >= 0; --i)
                 {
-                    if (identifiers_equal(name, current().locals_[i].name))
+                    if (identifiers_equal(name, scope->locals_[i].name))
                     {
-                        if (current().locals_[i].depth == -1)
+                        if (scope->locals_[i].depth == -1)
                         {
                             error("Cannot read local variable in its own initializer.");
                         }
+                        #ifdef TRACE_COMPILE
+                        stderr_ << "*** found: " << i << std::endl;
+                        #endif
                         return i;
                     }
+                }
+
+                #ifdef TRACE_COMPILE
+                stderr_ << "*** NOT FOUND" << std::endl;
+                #endif
+
+                return -1;
+            }
+
+            int add_upvalue(State& state, byte index, bool is_local)
+            {
+                #ifdef TRACE_COMPILE
+                stderr_ << "** add_upvalue: index=" << static_cast<unsigned>(index) 
+                    << ", is_local=" << is_local << std::endl;
+                #endif
+
+                auto& upvalues = state.upvalues_;
+                for (size_t i = 0; i < upvalues.size(); ++i)
+                {
+                    if (upvalues[i].index == index && upvalues[i].is_local == is_local)
+                    {
+                        #ifdef TRACE_COMPILE
+                        stderr_ << "*** found at: " << i << std::endl;
+                        #endif
+                        return static_cast<int>(i);
+                    }
+                }
+
+                if (upvalues.size() == Function::max_upvalues)
+                {
+                    error("Too many clsoure variables in function.");
+                    return 0;
+                }
+
+                upvalues.emplace_back(index, is_local);
+                #ifdef TRACE_COMPILE
+                stderr_ << "*** added upvalue at: " << (upvalues.size() - 1) << std::endl;
+                #endif
+                return static_cast<int>(upvalues.size() - 1);
+            }
+
+            int resolve_upvalue(Token const& name, State* scope = nullptr)
+            {
+                if (scope == nullptr)
+                    scope = &current();
+
+                auto parent = scope->enclosing_;
+                if (parent == nullptr)
+                    return -1;
+                
+                int local = resolve_local(name, parent);
+                if (local != -1)
+                {
+                    parent->locals_[local].is_captured = true;
+                    return add_upvalue(*scope, static_cast<byte>(local), true);
+                }
+
+                int upvalue = resolve_upvalue(name, parent);
+                if (upvalue != -1)
+                {
+                    return add_upvalue(*scope, static_cast<byte>(upvalue), false);
                 }
 
                 return -1;
@@ -780,15 +925,13 @@ namespace lox
 
             void add_local(Token const& name)
             {
-                if (current().local_count_ == max_locals)
+                if (current().locals_.size() >= max_locals)
                 {
                     error("Too many local variables in function.");
                     return;
                 }
 
-                Local& local = current().locals_[current().local_count_++];
-                local.name = name;
-                local.depth = -1;
+                current().locals_.emplace_back(name, -1, false);
             }
 
             void declare_variable()
@@ -797,9 +940,8 @@ namespace lox
                     return;
                 
                 Token name{previous_};
-                for (int i = current().local_count_ - 1; i >= 0; --i)
+                for (auto&& local : current().locals_)
                 {
-                    auto& local = current().locals_[i];
                     if (local.depth != -1 && local.depth < current().scope_depth_)
                         break;
 
@@ -827,7 +969,8 @@ namespace lox
                 if (current().scope_depth_ == 0)
                     return;
 
-                current().locals_[current().local_count_ - 1].depth = current().scope_depth_;
+                if (!current().locals_.empty())
+                    current().locals_.back().depth = current().scope_depth_;
             }
 
             void define_variable(byte global)
