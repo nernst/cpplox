@@ -4,6 +4,7 @@
 #endif
 #include "lox/scanner.hpp"
 #include "lox/object.hpp"
+#include "lox/gc.hpp"
 #include <array>
 #include <iterator>
 #include <list>
@@ -11,6 +12,10 @@
 #include <unordered_map>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
+
+#ifdef DEBUG_LOG_GC
+#include <iostream>
+#endif
 
 // #define TRACE_COMPILE
 
@@ -72,7 +77,7 @@ namespace lox
             Compiler& operator=(Compiler const&) = delete;
             Compiler& operator=(Compiler&&) = delete;
 
-            Function* compile()
+            gcroot<Function> compile()
             {
                 advance();
                 while (!match(Token::TOKEN_EOF))
@@ -80,7 +85,7 @@ namespace lox
                     declaration();
                 }
                 auto func = end();
-                return had_error_ ? nullptr : func;
+                return had_error_ ? gcroot<Function>{} : func;
             }
 
             Chunk& chunk() { return current().function_->chunk(); }
@@ -100,7 +105,7 @@ namespace lox
             struct State
             {
                 State* enclosing_ = nullptr;
-                Function* function_ = nullptr;
+                gcroot<Function> function_;
                 FunctionType function_type_ = FunctionType::INVALID;
                 int scope_depth_ = 0;
                 std::vector<Upvalue> upvalues_;
@@ -163,7 +168,7 @@ namespace lox
                 else
                 {
                     assert(!state_.empty());
-                    state_.emplace_back(type, new String(previous_.token), &state_.back());
+                    state_.emplace_back(type, String::create(previous_.token), &state_.back());
                 }
 
                 current().locals_.emplace_back(Token{}, 0, false);
@@ -351,7 +356,7 @@ namespace lox
                 return true;
             }
 
-            Function* end()
+            gcroot<Function> end()
             { 
                 emit_return(); 
 
@@ -365,7 +370,7 @@ namespace lox
                             : "<script>"
                     );
 #endif
-                auto func = current().function_;
+                auto func = std::move(current().function_);
 
 #ifdef DEBUG_PRINT_CODE
                 stderr_ << state_.back() << std::endl;
@@ -448,7 +453,7 @@ namespace lox
                 auto function = end();
                 auto upvalues = pop_state();
 
-                emit(OpCode::OP_CLOSURE, make_constant(Value{function}));
+                emit(OpCode::OP_CLOSURE, make_constant(Value{function.get()}));
                 for (auto&& upvalue : upvalues)
                 {
                     emit(static_cast<byte>(upvalue.is_local ? 1 : 0));
@@ -699,7 +704,7 @@ namespace lox
                 ignore(can_assign);
 
                 emit(Value{
-                    new String{std::string{previous_.start + 1, previous_.length - 2}}
+                    String::create(std::string_view{previous_.start + 1, previous_.length - 2})
                 });
             }
 
@@ -827,7 +832,7 @@ namespace lox
 
             byte identifier_constant(Token const& name)
             {
-                return make_constant(Value{new String(name.token)});
+                return make_constant(Value{String::create(name.token)});
             }
 
             static bool identifiers_equal(Token const& lhs, Token const& rhs)
@@ -1100,7 +1105,8 @@ namespace lox
         };
 
     }
-    Function* compile(std::string const& source, std::ostream& stderr)
+
+    gcroot<Function> compile(std::string const& source, std::ostream& stderr)
     {
         Compiler compiler{source, stderr};
         return compiler.compile();

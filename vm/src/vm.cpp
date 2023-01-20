@@ -18,6 +18,32 @@ namespace lox
 
     }
 
+    void VM::do_mark_objects(GC& gc)
+    {
+        #ifdef DEBUG_LOG_GC
+        fmt::print(std::cerr, "VM::do_mark_objects {} begin\n", static_cast<void*>(this));
+        #endif
+
+        for (auto slot = stack_.data(); slot != stack_top_; ++slot)
+        {
+            gc.mark_value(*slot);
+        }
+
+        for (size_t i = 0; i < frame_count_; ++i)
+        {
+            gc.mark_object(frames_[i].closure_);
+        }
+
+        for (auto upvalue = open_upvalues_; upvalue != nullptr; upvalue = upvalue->next_)
+        {
+            gc.mark_object(upvalue);
+        }
+
+        #ifdef DEBUG_LOG_GC
+        fmt::print(std::cerr, "VM::do_mark_objects {} end\n", static_cast<void*>(this));
+        #endif
+    }
+
     void VM::init_globals()
     {
         define_native("clock", &clock_native);
@@ -25,15 +51,13 @@ namespace lox
 
     VM::Result VM::interpret(std::string const& source)
     {
-        Function* function = compile(source, stderr());
-        if (function == nullptr)
+        auto function = compile(source, stderr());
+        if (!function)
             return Result::COMPILE_ERROR;
-        
-        push(Value{function});
-        Closure* closure{new Closure(function)};
-        pop();
-        push(Value{closure});
-        call(closure, 0);
+
+        gcroot<Closure> closure{new Closure(function.get())};
+        push(Value{closure.get()});
+        call(closure.get(), 0);
         return run();
     }
 
@@ -231,7 +255,7 @@ namespace lox
                             assert(s_lhs && "Expected String*!");
                             assert(s_rhs && "Expected String*!");
 
-                            push(Value(allocate<String>(s_lhs->str() + s_rhs->str())));
+                            push(Value(String::create(s_lhs->str() + s_rhs->str())));
                         }
                         else if (lhs.is_number() && rhs.is_number())
                         {
@@ -383,7 +407,7 @@ namespace lox
 
     void VM::define_native(std::string_view name, NativeFunction::NativeFn function)
     {
-        push(Value{new String{name}});
+        push(Value{String::create(name)});
         push(Value{new NativeFunction{function}});
         auto&& s = static_cast<String*>(peek(1).get<Object*>());
         globals_.add(s, peek(0));

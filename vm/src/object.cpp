@@ -1,32 +1,66 @@
 #include "lox/object.hpp"
-#include <atomic>
+#include "lox/gc.hpp"
+#include "lox/map.hpp"
 #include "fmt/ostream.h"
+#include <iostream>
 
 namespace lox
 {
     namespace {
-        static std::atomic<Object*> gc_root_ = nullptr;
-    }
 
-    Object* Object::gc_root()
-    { return gc_root_.load(); }
-
-    void Object::run_gc()
-    {
-        Object* root{nullptr};
-        root = gc_root_.exchange(root);
-
-        while (root)
+        lox::Map& strings()
         {
-            Object* next = root->gc_next_;
-            delete root;
-            root = next;
+            static lox::Map strings_{Tracking::WEAK};
+            return strings_;
         }
     }
 
+    template<class StringType>
+    String* String::do_create(StringType&& value)
+    {
+        auto& strs = strings();
+        Value v;
+        if (strs.get(std::string_view{value}, v))
+            return v.get<String*>();
+        
+        String* s = new String(std::forward<StringType>(value));
+        strs.add(s, Value{s});
+        return s;
+
+    }
+
+
+    String* String::create(const char* value)
+    {
+        std::string_view view {value};
+        return do_create(view);
+    }
+
+    String* String::create(std::string_view value)
+    {
+        return do_create(value);
+    }
+
+    String* String::create(std::string&& value)
+    {
+        return do_create(std::forward<decltype(value)>(value));
+    }
+
     Object::Object()
-    : gc_next_{gc_root_.exchange(this)}
+    : gc_next_{GC::instance().root_.exchange(this)}
+    , gc_marked_{false}
     { }
+
+    void Object::gc_blacken(GC& gc)
+    {
+        ignore(gc);
+
+        #ifdef DEBUG_LOG_GC
+        fmt::print(std::cerr, "{} blacken ", static_cast<void*>(this));
+        print_object(std::cerr, *this);
+        fmt::print(std::cerr, "\n");
+        #endif
+    }
 
     Object::~Object() { }
 
@@ -71,6 +105,42 @@ namespace lox
                 unreachable();
                 break;
         }
+
+    }
+
+    void ObjUpvalue::gc_blacken(GC& gc)
+    {
+        Object::gc_blacken(gc);
+
+        gc.mark_value(closed_);
+    }
+
+    void Function::gc_blacken(GC& gc)
+    {
+        Object::gc_blacken(gc);
+
+        gc.mark_object(name_);
+
+        auto const& array = chunk_.constants();
+        for (size_t i = 0; i != array.size(); ++i)
+        {
+            Value v{array[i]};
+            gc.mark_value(v);
+        }
+    }
+
+    void Closure::gc_blacken(GC& gc)
+    {
+        Object::gc_blacken(gc);
+
+        gc.mark_object(function_);
+
+        auto upvalues = upvalues_.get();
+        if (!upvalues)
+            return;
+
+        for (size_t i = 0; i != upvalue_count_; ++i)
+            gc.mark_object(upvalues[i]);
 
     }
 }

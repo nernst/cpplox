@@ -163,30 +163,5 @@ namespace lox
 
     void print_value(Value const& value);
     void print_value(std::ostream& stream, Value const& value);
-
-    class ValueArray
-    {
-    public:
-        ValueArray() = default;
-        ValueArray(ValueArray const&) = default;
-        ValueArray(ValueArray&&) = default;
-
-        ~ValueArray();
-
-        ValueArray& operator=(ValueArray const&) = default;
-        ValueArray& operator=(ValueArray&&) = default;
-
-        void write(Value value) { data_.push_back(value); }
-        size_t size() const { return data_.size(); }
-
-        Value operator[](size_t index) const
-        {
-            assert(index < data_.size());
-            return data_[index];
-        }
-
-    private:
-        std::vector<Value> data_;
-    };
  
 }

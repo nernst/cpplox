@@ -1,0 +1,5 @@
+
+fun test_fun() {
+    print "fail";
+}
+print test_fun;

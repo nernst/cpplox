@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "chunk.hpp"
+#include "gc.hpp"
 #include <iosfwd>
 #include <memory>
 
@@ -44,8 +45,6 @@ namespace lox
 
     class Object
     {
-        friend class VM;
-
     public:
         Object();
         Object(Object const&) = delete;
@@ -71,17 +70,17 @@ namespace lox
 
         virtual size_t hash() const = 0;
 
-    private:
-        // for GC
-        Object* gc_next_;
+    protected:
+        friend class Trackable;
+        friend class GC;
+        Object* gc_next_ = nullptr;
+        bool gc_marked_ = false;
 
-        static Object* gc_root();
-        static void run_gc();
+        virtual void gc_blacken(GC& gc);
     };
 
     class String : public Object
     {
-    public:
         String()
         : Object{}
         , data_{}
@@ -95,10 +94,19 @@ namespace lox
         , hash_{lox::hash(data_)}
         { }
 
-        String(String const&) = default;
-        String(String&&) = default;
+        template<class StringType>
+        static String* do_create(StringType&& value);
+
+    public:
+
+        String(String const&) = delete;
+        String(String&&) = delete;
 
         ~String() noexcept override { }
+
+        static String* create(const char* value);
+        static String* create(std::string_view value);
+        static String* create(std::string&& value);
 
         String& operator=(String const&) = default;
         String& operator=(String&&) = default;
@@ -185,6 +193,8 @@ namespace lox
         Chunk chunk_;
         String* name_ = nullptr;
         unsigned upvalues_ = 0;
+
+        void gc_blacken(GC& gc) override;
     };
 
     class NativeFunction : public Object
@@ -248,9 +258,13 @@ namespace lox
         size_t hash() const override { return reinterpret_cast<size_t>(this); }
 
     private:
+        friend class VM;
+
         Function* function_;
         unsigned upvalue_count_;
         std::unique_ptr<ObjUpvalue*[]> upvalues_;
+
+        void gc_blacken(GC& gc) override;
     };
 
     class ObjUpvalue : public Object
@@ -292,5 +306,7 @@ namespace lox
         ObjUpvalue* next_ = nullptr;
 
         friend class VM;
+
+        void gc_blacken(GC& gc) override;
     };
 }

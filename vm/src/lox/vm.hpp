@@ -3,6 +3,7 @@
 #include "chunk.hpp"
 #include "map.hpp"
 #include "object.hpp"
+#include "gc.hpp"
 #include <cassert>
 #include <string>
 #include <fmt/format.h>
@@ -13,6 +14,7 @@ namespace lox
 {
     class CallFrame
     {
+        friend class VM;
         Closure* closure_;
         byte* ip_;
         byte* ip_begin_;
@@ -89,7 +91,7 @@ namespace lox
         }
     };
 
-    class VM
+    class VM : Trackable
     {
     public:
         enum class Result {
@@ -104,15 +106,14 @@ namespace lox
         VM(std::ostream& stdout = std::cout, std::ostream& stderr = std::cerr)
         : stdout_{&stdout}
         , stderr_{&stderr}
-        { init_globals(); }
+        {
+            init_globals();
+        }
 
         VM(VM const&) = delete;
         VM(VM&&) = default;
 
-        ~VM()
-        {
-            free_objects();
-        }
+        ~VM() = default;
 
         VM& operator=(VM const&) = delete;
         VM& operator=(VM&&) = default;
@@ -124,27 +125,6 @@ namespace lox
 
         std::ostream& stderr() const { return *stderr_; }
         void stderr(std::ostream& stderr) { stderr_ = &stderr; }
-
-        template<typename ObjectType, typename... Args>
-        ObjectType* allocate(Args&&... args)
-        {
-            return new ObjectType(std::forward<Args>(args)...);
-        }
-
-        template<typename T>
-        String* allocate_str(T&& arg)
-        {
-            String* str;
-            if (strings_.get(std::forward<T&>(arg), str))
-            {
-                return str;
-            }
-            else
-            {
-                str = new String(std::forward<T&&>(arg));
-                strings_.add(str, nullptr);
-            }
-        }
 
         void reset()
         {
@@ -162,7 +142,6 @@ namespace lox
         ObjUpvalue* open_upvalues_ = nullptr;
 
         Object* objects_ = nullptr;
-        Map strings_;
         Map globals_;
         std::ostream* stdout_ = &std::cout;
         std::ostream* stderr_ = &std::cerr;
@@ -203,11 +182,6 @@ namespace lox
             stack_top_ = slots_end;
 
             return current;
-        }
-
-        void free_objects()
-        {
-            Object::run_gc();
         }
 
         Value const& peek(size_t distance) const {
@@ -312,5 +286,8 @@ namespace lox
 
         ObjUpvalue* capture_upvalue(Value* local);
         void close_upvalues(Value* last);
+
+
+        void do_mark_objects(GC& gc) override;
     };
 }

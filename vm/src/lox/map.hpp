@@ -3,20 +3,29 @@
 #include "common.hpp"
 #include "value.hpp"
 #include "object.hpp"
+#include "gc.hpp"
 #include <memory>
 #include <iosfwd>
 
+#ifdef DEBUG_LOG_GC
+#include <iostream>
+#include "fmt/format.h"
+#include "fmt/ostream.h"
+#endif
+
 namespace lox
 {
-    class Map
+    class Map : Trackable
     {
+        friend class GC;
+
     public:
 
         static constexpr const double max_load = 0.75;
 
         struct Entry
         {
-            String const* key;
+            String* key;
             Value value;
 
             Entry()
@@ -32,13 +41,15 @@ namespace lox
             Entry& operator=(Entry&&) = default;
         };
 
-        Map()
-        : size_{0}
+        explicit Map(Tracking tracking = Tracking::STRONG)
+        : Trackable{tracking}
+        , size_{0}
         , capacity_{0}
-        {}
+        { }
 
         Map(Map const& other)
-        : size_{0}
+        : Trackable{other}
+        , size_{0}
         , capacity_{other.capacity_}
         , entries_{new Entry[capacity_]}
         {
@@ -46,7 +57,8 @@ namespace lox
         }
         
         Map(Map&& move)
-        : size_{move.size_}
+        : Trackable{move}
+        , size_{move.size_}
         , capacity_{move.capacity_}
         , entries_{std::move(move.entries_)}
         {
@@ -80,7 +92,7 @@ namespace lox
         bool empty() const { return size() == 0; }
 
         template<typename V>
-        bool add(String const* key, V&& value)
+        bool add(String* key, V&& value)
         {
             if (size_ + 1 > capacity_ * max_load) {
                 grow_capacity();
@@ -95,19 +107,25 @@ namespace lox
             return is_new;
         }
 
-        bool get(String const* key, Value& out) const {
+        bool get(String* key, Value& out) const {
+            assert(key);
+            return get(key->view(), out);
+        }
+
+        bool get(std::string_view key, Value& out) const {
             if (empty())
                 return false;
 
-            Entry const* entry = find_entry(key->str());
+            Entry const* entry = find_entry(key);
             if (entry->key == nullptr)
                 return false;
 
             out = entry->value;
             return true;
+
         }
 
-        bool remove(String const* key) {
+        bool remove(String* key) {
             if (empty())
                 return false;
 
@@ -125,6 +143,54 @@ namespace lox
         size_t size_;
         size_t capacity_;
         std::unique_ptr<Entry[]> entries_;
+
+        void do_mark_objects(GC& gc) override
+        {
+            #ifdef DEBUG_LOG_GC
+            fmt::print(std::cerr, "Map::do_mark_objects {} begin\n", static_cast<void*>(this));
+            #endif
+            
+            const auto start = entries_.get();
+            if (!start)
+                return;
+
+            for (auto p = start, pend = start + capacity_; p != pend; ++p)
+            {
+                if (p->key)
+                    gc.mark_object(p->key);
+                gc.mark_value(p->value);
+            }
+
+            #ifdef DEBUG_LOG_GC
+            fmt::print(std::cerr, "Map::do_mark_objects {} end\n", static_cast<void*>(this));
+            #endif
+        }
+
+        void remove_weak_refs(GC& gc) override
+        {
+            ignore(gc);
+
+            #ifdef DEBUG_LOG_GC
+            fmt::print(std::cerr, "Map::remove_weak_refs {} begin\n", static_cast<void*>(this));
+            #endif
+            
+            const auto start = entries_.get();
+            if (!start)
+                return;
+
+            for (auto p = start, pend = start + capacity_; p != pend; ++p)
+            {
+                if (Trackable::is_used(p->key))
+                    continue;
+
+                p->key = nullptr;
+                p->value = {};
+            }
+
+            #ifdef DEBUG_LOG_GC
+            fmt::print(std::cerr, "Map::remove_weak_refs {} end\n", static_cast<void*>(this));
+            #endif
+        }
 
         Entry const* find_entry(std::string_view key) const
         {
@@ -171,6 +237,9 @@ namespace lox
         }
 
         void grow_capacity() {
+            #ifdef DEBUGT_STRESS_GC
+            gc_->collect();
+            #endif
             const size_t old_capacity{capacity_};
             capacity_ = std::max(16ul, old_capacity * 2);
             size_ = 0;

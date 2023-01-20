@@ -70,13 +70,18 @@ namespace lox
 		{
 			assert(constants_.size() < 256);
 
-			constants_.write(value);
-			return constants_.size() - 1;
+			auto iter = std::find(std::begin(constants_), std::end(constants_), value);
+			if (iter == std::end(constants_))
+			{
+				constants_.push_back(value);
+				return constants_.size() - 1;
+			};
+			return iter - std::begin(constants_);
 		}
 
 		std::vector<byte> const& code() const { return code_; }
 		std::vector<byte>& code() { return code_; }
-		ValueArray const& constants() const { return constants_; }
+		std::vector<Value> const& constants() const { return constants_; }
 		std::vector<size_t> const& lines() const { return lines_; }
 
 		byte* begin() { return &code_.front(); }
@@ -88,7 +93,7 @@ namespace lox
 
 	private:
 		std::vector<byte> code_;
-		ValueArray constants_;
+		std::vector<Value> constants_;
 		std::vector<size_t> lines_;
 	};
 }

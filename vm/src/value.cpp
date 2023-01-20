@@ -15,9 +15,6 @@ namespace lox
         return false;
     }
 
-    ValueArray::~ValueArray()
-    { }
-
     std::string Value::type_name() const
     {
         return std::visit([](auto&& v) -> std::string {
