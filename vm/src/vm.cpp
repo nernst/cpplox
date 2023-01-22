@@ -318,6 +318,43 @@ namespace lox
                     break;
                 }
 
+                case OpCode::OP_GET_PROPERTY:
+                {
+                    ObjInstance* instance = nullptr;
+                    if (!peek(0).try_get(instance))
+                    {
+                        runtime_error("Only instances have properties.");
+                        return Result::RUNTIME_ERROR;
+                    }
+                    auto name = read_string();
+
+                    Value value;
+                    if (instance->fields().get(name, value))
+                    {
+                        pop(); // instance
+                        push(value);
+                        break;
+                    }
+
+                    runtime_error("Undefined property '{}'.", name->view());
+                    return Result::RUNTIME_ERROR;
+                }
+            
+                case OpCode::OP_SET_PROPERTY:
+                {
+                    ObjInstance* instance = nullptr;
+                    if (!peek(1).try_get(instance))
+                    {
+                        runtime_error("Only instances have fields.");
+                        return Result::RUNTIME_ERROR;
+                    }
+                    instance->fields().add(read_string(), peek(0));
+                    Value value{pop()}; // value
+                    pop(); // instance
+                    push(value);
+                    break;
+                }
+
                 case OpCode::OP_EQUAL:
                     push(Value(pop() == pop()));
                     break;

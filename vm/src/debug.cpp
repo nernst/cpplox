@@ -110,6 +110,12 @@ namespace lox
             case OpCode::OP_SET_UPVALUE:
                 return byte_instruction(stream, chunk, "OP_SET_UPVALUE", offset);
 
+            case OpCode::OP_GET_PROPERTY:
+                return constant(stream, chunk, "OP_GET_PROPERTY", offset);
+
+            case OpCode::OP_SET_PROPERTY:
+                return constant(stream, chunk, "OP_SET_PROPERTY", offset);
+
             case OpCode::OP_EQUAL:
                 return simple(stream, chunk, "OP_EQUAL", offset);
 

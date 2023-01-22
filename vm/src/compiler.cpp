@@ -833,6 +833,22 @@ namespace lox
                 emit(OpCode::OP_CALL, arg_count);
             }
 
+            void dot(bool can_assign)
+            {
+                consume(Token::IDENTIFIER, "Expect property name after '.'.");
+                auto name = identifier_constant(previous_);
+
+                if (can_assign && match(Token::EQUAL))
+                {
+                    expression();
+                    emit(OpCode::OP_SET_PROPERTY, name);
+                }
+                else
+                {
+                    emit(OpCode::OP_GET_PROPERTY, name);
+                }
+            }
+
             void literal(bool can_assign)
             {
                 ignore(can_assign);
@@ -1087,6 +1103,7 @@ namespace lox
                     #define RULE(token, prefix, infix, precedence) \
                         {Token::token, {prefix, infix, Precedence::precedence }}
                     RULE(LEFT_PAREN, &Compiler::grouping, &Compiler::call, CALL),
+                    RULE(DOT, nullptr, &Compiler::dot, CALL),
                     RULE(MINUS, &Compiler::unary, &Compiler::binary, TERM),
                     RULE(PLUS, nullptr, &Compiler::binary, TERM),
                     RULE(SLASH, nullptr, &Compiler::binary, FACTOR),

@@ -115,7 +115,7 @@ namespace lox
         {
             if constexpr(is_obj_ptr_convertible_v<T>)
             {
-                if (!std::holds_alternative<T>(value_))
+                if (!std::holds_alternative<Object*>(value_))
                     return false;
 
                 if constexpr(std::is_same_v<T, Object*>)
