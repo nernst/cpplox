@@ -461,6 +461,19 @@ namespace lox
                 }
             }
 
+            void class_declaration()
+            {
+                consume(Token::IDENTIFIER, "Expect class name.");
+                auto name_constant = identifier_constant(previous_);
+                declare_variable();
+
+                emit(OpCode::OP_CLASS, name_constant);
+                define_variable(name_constant);
+
+                consume(Token::LEFT_BRACE, "Expect '{' before class body.");
+                consume(Token::RIGHT_BRACE, "Expect '}' after class body.");
+            }
+
             void fun_declaration()
             {
                 byte global = parse_variable("Expect function name.");
@@ -640,7 +653,10 @@ namespace lox
 
             void declaration()
             {
-                if (match(Token::FUN)) {
+                if (match(Token::CLASS)) {
+                    class_declaration();
+                }
+                else if (match(Token::FUN)) {
                     fun_declaration();
                 }
                 else if (match(Token::VAR)) {

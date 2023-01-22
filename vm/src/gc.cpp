@@ -7,13 +7,19 @@ namespace lox {
 
     Trackable::Trackable(Tracking tracking)
     {
-        GC::instance().track(this, tracking);
+        if (tracking != Tracking::HELD)
+        {
+            GC::instance().track(this, tracking);
+        }
     }
 
     Trackable::~Trackable()
     {
-        GC::instance().untrack(this);
-        GC::instance().collect();
+        if (GC::instance().untrack(this))
+        {
+            // only force collection if this instance was tracked
+            GC::instance().collect();
+        }
     }
 
     bool Trackable::is_used(Object const* object)
@@ -78,7 +84,7 @@ namespace lox {
         tracking_.emplace_back(trackable, tracking);
     }
 
-    void GC::untrack(Trackable* trackable)
+    bool GC::untrack(Trackable* trackable)
     {
         assert(trackable);
 
@@ -98,11 +104,20 @@ namespace lox {
         );
 
         if (iter != std::end(tracking_))
+        {
             tracking_.erase(iter);
+            return true;
+        }
+        return false;
     }
 
     void GC::collect()
     {
+        if (running_)
+            return;
+
+        running_ = true;
+
     #ifdef DEBUG_LOG_GC
         fmt::print(stderr_, "-- gc begin\n");
     #endif
@@ -115,6 +130,7 @@ namespace lox {
     #ifdef DEBUG_LOG_GC
         fmt::print(stderr_, "-- gc end\n");
     #endif
+        running_ = false;
     }
 
     void GC::free_objects()

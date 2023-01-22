@@ -12,7 +12,8 @@ namespace lox
 
     enum class Tracking{
         STRONG,
-        WEAK
+        WEAK,
+        HELD,
     };
 
 
@@ -24,10 +25,10 @@ namespace lox
 
     protected:
         static bool is_used(Object const* object);
-    
+        void mark_objects(GC& gc);
+
     private:
         friend class GC;
-        void mark_objects(GC& gc);
         virtual void do_mark_objects(GC& gc) = 0;
         virtual void remove_weak_refs(GC&) { }
 
@@ -105,9 +106,10 @@ namespace lox
         std::ostream& stderr_;
         std::vector<std::tuple<Trackable*, Tracking>> tracking_;
         std::vector<Object*> gray_stack_;
+        bool running_ = false;
 
         void track(Trackable* trackable, Tracking tracking);
-        void untrack(Trackable* trackable);
+        bool untrack(Trackable* trackable);
 
         void free_objects();
         void free_object(Object*);

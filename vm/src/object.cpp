@@ -1,6 +1,8 @@
 #include "lox/object.hpp"
 #include "lox/gc.hpp"
 #include "lox/map.hpp"
+#include "lox/types/objclass.hpp"
+#include "lox/types/objinstance.hpp"
 #include "fmt/ostream.h"
 #include <iostream>
 
@@ -101,6 +103,29 @@ namespace lox
                 fmt::print(os, "<upvalue>");
                 break;
 
+            case ObjectType::OBJCLASS:
+            {
+                ObjClass const& klass = static_cast<ObjClass const&>(object);
+                fmt::print(os, "<class {} @ {}>", klass.name()->view(), static_cast<void const*>(&klass));
+                break;
+            }
+
+            case ObjectType::OBJINSTANCE:
+            {
+                ObjInstance const& instance = static_cast<ObjInstance const&>(object);
+                #if 0
+                fmt::print(
+                    os, 
+                    "<instance {} @ {}>",
+                    instance.obj_class()->name()->view(),
+                    static_cast<void const*>(&instance)
+                );
+                #else
+                fmt::print(os, "{} instance", instance.obj_class()->name()->view());
+                #endif
+                break;
+            }
+
             default:
                 unreachable();
                 break;
@@ -142,5 +167,20 @@ namespace lox
         for (size_t i = 0; i != upvalue_count_; ++i)
             gc.mark_object(upvalues[i]);
 
+    }
+
+    void ObjClass::gc_blacken(GC& gc)
+    {
+        Object::gc_blacken(gc);
+
+        gc.mark_object(name_);
+    }
+
+    void ObjInstance::gc_blacken(GC& gc)
+    {
+        Object::gc_blacken(gc);
+
+        gc.mark_object(class_);
+        fields_.mark_objects(gc);
     }
 }

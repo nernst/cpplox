@@ -1,5 +1,7 @@
 #include "lox/debug.hpp"
 #include "lox/object.hpp"
+#include "lox/types/objclass.hpp"
+#include "lox/types/objinstance.hpp"
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
@@ -182,6 +184,9 @@ namespace lox
 
             case OpCode::OP_RETURN:
                 return simple(stream, chunk, "OP_RETURN", offset);
+
+            case OpCode::OP_CLASS:
+                return constant(stream, chunk, "OP_CLASS", offset);
             
             default:
                 fmt::print(stream, "Unknown op code: {}\n", instruction);

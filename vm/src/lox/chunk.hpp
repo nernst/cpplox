@@ -40,6 +40,7 @@ namespace lox
 		OP_CLOSURE,
 		OP_CLOSE_UPVALUE,
 		OP_RETURN,
+		OP_CLASS,
 	};
 
 

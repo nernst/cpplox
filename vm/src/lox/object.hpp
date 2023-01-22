@@ -10,6 +10,8 @@ namespace lox
 {
     class Object;
     class ObjUpvalue;
+    class ObjClass;
+    class ObjInstance;
     class VM;
 
     void print_object(std::ostream& stream, Object const& object);
@@ -68,7 +70,7 @@ namespace lox
             return this == &other;
         }
 
-        virtual size_t hash() const = 0;
+        virtual size_t hash() const { return reinterpret_cast<size_t>(this); }
 
     protected:
         friend class Trackable;
@@ -186,8 +188,6 @@ namespace lox
         Chunk const& chunk() const { return chunk_; }
         Chunk& chunk() { return chunk_; }
 
-        size_t hash() const override { return reinterpret_cast<size_t>(this); }
-
     private:
         unsigned arity_ = 0;
         Chunk chunk_;
@@ -218,8 +218,6 @@ namespace lox
 
         ObjectType type() const override { return ObjectType::NATIVE_FUNCTION; }
         const char* type_name() const override { return "NativeFunction"; }
-
-        size_t hash() const override { return reinterpret_cast<size_t>(this); }
 
         Value invoke(int arg_count, Value* args) const
         { return native_(arg_count, args); }
@@ -254,8 +252,6 @@ namespace lox
 
         ObjectType type() const override { return ObjectType::CLOSURE; }
         const char* type_name() const override { return "Closure"; }
-
-        size_t hash() const override { return reinterpret_cast<size_t>(this); }
 
     private:
         friend class VM;
@@ -297,8 +293,6 @@ namespace lox
 
         ObjectType type() const override { return ObjectType::OBJUPVALUE; }
         const char* type_name() const override { return "ObjUpvalue"; }
-
-        size_t hash() const override { return reinterpret_cast<size_t>(this); }
 
     private:
         Value* location_; 

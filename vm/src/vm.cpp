@@ -1,5 +1,7 @@
 #include "lox/compiler.hpp"
 #include "lox/vm.hpp"
+#include "lox/types/objclass.hpp"
+#include "lox/types/objinstance.hpp"
 #include <fmt/format.h>
 #include <ctime>
 #include <functional>
@@ -71,6 +73,7 @@ namespace lox
                 case ObjectType::NATIVE_FUNCTION:
                 {
                     auto native = dynamic_cast<NativeFunction*>(obj);
+                    assert(native);
                     auto result = native->invoke(arg_count, stack_top_ - arg_count);
                     stack_top_ -= arg_count + 1;
                     push(result);
@@ -79,6 +82,14 @@ namespace lox
 
                 case ObjectType::CLOSURE:
                     return call(dynamic_cast<Closure*>(obj), arg_count);
+
+                case ObjectType::OBJCLASS:
+                {
+                    ObjClass* klass = dynamic_cast<ObjClass*>(obj);
+                    assert(klass);
+                    push(Value{new ObjInstance{klass}});
+                    return true;
+                }
                 
                 default:
                     break; // non-callable
@@ -399,6 +410,12 @@ namespace lox
                         return Result::OK;
                     }
                     push(result);
+                    break;
+                }
+
+                case OpCode::OP_CLASS:
+                {
+                    push(Value{new ObjClass{read_string()}});
                     break;
                 }
             }

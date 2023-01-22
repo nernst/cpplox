@@ -18,6 +18,7 @@ namespace lox
     class Map : Trackable
     {
         friend class GC;
+        friend class ObjInstance;
 
     public:
 

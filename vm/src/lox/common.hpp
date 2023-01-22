@@ -15,8 +15,8 @@
 #define DEBUG_PRINT_CODE
 #define DEBUG_TRACE_EXECUTION
 #endif
-#define DEBUG_STRESS_GC
-#define DEBUG_LOG_GC
+// #define DEBUG_STRESS_GC
+// #define DEBUG_LOG_GC
 
 namespace lox
 {
@@ -66,6 +66,8 @@ namespace lox
 		NATIVE_FUNCTION,
 		CLOSURE,
 		OBJUPVALUE,
+		OBJCLASS,
+		OBJINSTANCE,
     };
 }
 
