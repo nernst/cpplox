@@ -41,3 +41,56 @@ print instance.prop;
     assert_equal(res, lox::VM::Result::OK);
     assert_equal(out, expected);
 }
+
+BOOST_AUTO_TEST_CASE(class_simple_method_test)
+{
+    const auto test = R"test(
+class Class{
+    test(first, second) { print first + second; }
+}
+var instance = Class();
+instance.test("pa", "ss");
+    )test"s;
+    const auto expected = "pass"s;
+
+    auto [res, out, err] = run_test(test);
+    assert_equal(res, lox::VM::Result::OK);
+    assert_equal(out, expected);
+}
+
+BOOST_AUTO_TEST_CASE(class_property_test)
+{
+    const auto test = R"test(
+class Class{}
+var instance = Class();
+instance.property = "pass";
+print instance.property;
+    )test"s;
+    const auto expected = "pass"s;
+
+    auto [res, out, err] = run_test(test);
+    assert_equal(res, lox::VM::Result::OK);
+    assert_equal(out, expected);
+}
+
+BOOST_AUTO_TEST_CASE(class_init_test)
+{
+    const auto test = R"test(
+class Class{
+    init(message)
+    {
+        this.message = message;
+    }
+
+    say()
+    { print this.message; }
+}
+var instance = Class("pass");
+instance.say();
+    )test"s;
+    const auto expected = "pass"s;
+
+    auto [res, out, err] = run_test(test);
+    assert_equal(res, lox::VM::Result::OK);
+    assert_equal(out, expected);
+}

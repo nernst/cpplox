@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../object.hpp"
+#include "../map.hpp"
 
 namespace lox {
 
@@ -10,6 +11,7 @@ namespace lox {
         explicit ObjClass(String* name)
         : Object{}
         , name_{name}
+        , methods_{Tracking::HELD}
         {
             assert(name);
         }
@@ -24,10 +26,14 @@ namespace lox {
         ObjectType type() const override { return ObjectType::OBJCLASS; }  
         const char* type_name() const override { return "ObjClass"; }
 
+        Map& methods() { return methods_; }
+        Map const& methods() const { return methods_; }
+
         String* name() const { return name_; }
 
     private:
         String* name_;
+        Map methods_;
 
         void gc_blacken(GC& gc) override;
     };

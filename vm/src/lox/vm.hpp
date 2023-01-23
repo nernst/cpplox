@@ -143,6 +143,7 @@ namespace lox
 
         Object* objects_ = nullptr;
         Map globals_;
+        String* init_str_ = nullptr;
         std::ostream* stdout_ = &std::cout;
         std::ostream* stderr_ = &std::cerr;
 
@@ -264,6 +265,8 @@ namespace lox
         void init_globals();
 
         void define_native(std::string_view name, NativeFunction::NativeFn function);
+        void define_method(String* name);
+        bool bind_method(ObjClass* klass, String* name);
 
         template<typename T>
         bool numeric_binary_op(T&& op)

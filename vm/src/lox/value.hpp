@@ -82,7 +82,6 @@ namespace lox
                 else
                     return true;
             });
-
         }
 
         bool is_true() const { return bool{*this}; }

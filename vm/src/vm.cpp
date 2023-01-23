@@ -2,6 +2,7 @@
 #include "lox/vm.hpp"
 #include "lox/types/objclass.hpp"
 #include "lox/types/objinstance.hpp"
+#include "lox/types/objboundmethod.hpp"
 #include <fmt/format.h>
 #include <ctime>
 #include <functional>
@@ -25,6 +26,7 @@ namespace lox
         #ifdef DEBUG_LOG_GC
         fmt::print(std::cerr, "VM::do_mark_objects {} begin\n", static_cast<void*>(this));
         #endif
+        gc.mark_object(init_str_);
 
         for (auto slot = stack_.data(); slot != stack_top_; ++slot)
         {
@@ -48,6 +50,7 @@ namespace lox
 
     void VM::init_globals()
     {
+        init_str_ = String::create("init");
         define_native("clock", &clock_native);
     }
 
@@ -87,8 +90,28 @@ namespace lox
                 {
                     ObjClass* klass = dynamic_cast<ObjClass*>(obj);
                     assert(klass);
-                    push(Value{new ObjInstance{klass}});
+
+                    stack_top_[-arg_count - 1] = Value{new ObjInstance{klass}};
+
+                    Value initializer;
+                    if (klass->methods().get(init_str_, initializer))
+                    {
+                        return call(initializer.get<Closure*>(), arg_count);
+                    }
+                    else if (arg_count != 0)
+                    {
+                        runtime_error("Expected 0 arguments but got {}.", arg_count);
+                        return false;
+                    }
                     return true;
+                }
+
+                case ObjectType::OBJBOUNDMETHOD:
+                {
+                    auto bound = dynamic_cast<ObjBoundMethod*>(obj);
+                    assert(bound);
+                    stack_top_[-arg_count - 1] = bound->receiver();
+                    return call(bound->method(), arg_count);
                 }
                 
                 default:
@@ -336,8 +359,12 @@ namespace lox
                         break;
                     }
 
-                    runtime_error("Undefined property '{}'.", name->view());
-                    return Result::RUNTIME_ERROR;
+                    if (!bind_method(instance->obj_class(), name))
+                    {
+                        return Result::RUNTIME_ERROR;
+                    }
+
+                    break;
                 }
             
                 case OpCode::OP_SET_PROPERTY:
@@ -345,7 +372,7 @@ namespace lox
                     ObjInstance* instance = nullptr;
                     if (!peek(1).try_get(instance))
                     {
-                        runtime_error("Only instances have fields.");
+                        runtime_error("Only instances have fields, not {}.", peek(1).type_name());
                         return Result::RUNTIME_ERROR;
                     }
                     instance->fields().add(read_string(), peek(0));
@@ -455,6 +482,10 @@ namespace lox
                     push(Value{new ObjClass{read_string()}});
                     break;
                 }
+
+                case OpCode::OP_METHOD:
+                    define_method(read_string());
+                    break;
             }
         }
     }
@@ -467,5 +498,27 @@ namespace lox
         globals_.add(s, peek(0));
         pop();
         pop();
+    }
+
+    void VM::define_method(String* name)
+    {
+        auto method = peek(0);
+        peek(1).get<ObjClass*>()->methods().add(name, method);
+        pop(); // method
+    }
+
+    bool VM::bind_method(ObjClass* klass, String* name)
+    {
+        Value method;
+        if (!klass->methods().get(name, method))
+        {
+            runtime_error("Undefined property '%s'.", name->view());
+            return false;
+        }
+
+        auto bound{new ObjBoundMethod(peek(0), method.get<Closure*>())};
+        pop();
+        push(Value{bound});
+        return true;
     }
 }

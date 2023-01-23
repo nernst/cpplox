@@ -193,6 +193,9 @@ namespace lox
 
             case OpCode::OP_CLASS:
                 return constant(stream, chunk, "OP_CLASS", offset);
+
+            case OpCode::OP_METHOD:
+                return constant(stream, chunk, "OP_METHOD", offset);
             
             default:
                 fmt::print(stream, "Unknown op code: {}\n", instruction);

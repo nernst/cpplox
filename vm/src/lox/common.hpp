@@ -68,6 +68,7 @@ namespace lox
 		OBJUPVALUE,
 		OBJCLASS,
 		OBJINSTANCE,
+		OBJBOUNDMETHOD,
     };
 }
 

@@ -51,6 +51,11 @@ namespace lox
                 bool is_local = false;
             };
 
+            struct Class
+            {
+                Class* enclosing = nullptr;
+            };
+
         public:
 
             enum class FunctionType
@@ -58,6 +63,8 @@ namespace lox
                 INVALID,
                 FUNCTION,
                 SCRIPT,
+                METHOD,
+                INITIALIZER,
             };
 
             Compiler(std::string const& source, std::ostream& stderr)
@@ -101,6 +108,7 @@ namespace lox
             Token previous_;
             bool had_error_;
             bool panic_mode_;
+            Class* current_class_ = nullptr;
 
             struct State
             {
@@ -171,7 +179,8 @@ namespace lox
                     state_.emplace_back(type, String::create(previous_.token), &state_.back());
                 }
 
-                current().locals_.emplace_back(Token{}, 0, false);
+                Token token{type == FunctionType::FUNCTION ? std::string_view{} : "this"};
+                current().locals_.emplace_back(std::move(token), 0, false);
 
                 #ifdef TRACE_COMPILE
                 stderr_ << "** push state: depth=" << state_.size()
@@ -277,7 +286,14 @@ namespace lox
 
             void emit_return()
             { 
-                emit(OpCode::OP_NIL);
+                if (current().function_type_ == FunctionType::INITIALIZER)
+                {
+                    emit(OpCode::OP_GET_LOCAL, 0);
+                }
+                else
+                {
+                    emit(OpCode::OP_NIL);
+                }
                 emit(OpCode::OP_RETURN);
             }
 
@@ -461,17 +477,41 @@ namespace lox
                 }
             }
 
+            void method()
+            {
+                consume(Token::IDENTIFIER, "Expect method name.");
+                auto constant = identifier_constant(previous_);
+                FunctionType type{FunctionType::METHOD};
+                if (previous_.token == "init")
+                    type = FunctionType::INITIALIZER;
+                function(type);
+                emit(OpCode::OP_METHOD, constant);
+            }
+
             void class_declaration()
             {
                 consume(Token::IDENTIFIER, "Expect class name.");
+                auto class_name = previous_;
                 auto name_constant = identifier_constant(previous_);
                 declare_variable();
 
                 emit(OpCode::OP_CLASS, name_constant);
                 define_variable(name_constant);
 
+                Class klass{current_class_};
+                current_class_ = &klass;
+
+                named_variable(class_name, false); // push class name
+
                 consume(Token::LEFT_BRACE, "Expect '{' before class body.");
+                while (!check(Token::RIGHT_BRACE) && !check(Token::TOKEN_EOF))
+                {
+                    method();
+                }
                 consume(Token::RIGHT_BRACE, "Expect '}' after class body.");
+                emit(OpCode::OP_POP); // pop class name
+
+                current_class_ = klass.enclosing;
             }
 
             void fun_declaration()
@@ -601,6 +641,10 @@ namespace lox
                 }
                 else
                 {
+                    if (current().function_type_ == FunctionType::INITIALIZER)
+                    {
+                        error("Cannot return a value from an initializer.");
+                    }
                     expression();
                     consume(Token::SEMICOLON, "Expect ';' after return value.");
                     emit(OpCode::OP_RETURN);
@@ -772,6 +816,19 @@ namespace lox
             void variable(bool can_assign)
             {
                 named_variable(previous_, can_assign);
+            }
+
+            void this_(bool can_assign)
+            {
+                ignore(can_assign);
+
+                if (current_class_ == nullptr)
+                {
+                    error("Cannot use 'this' outside of a class.");
+                    return;
+                }
+
+                variable(false);
             }
 
             void grouping(bool can_assign)
@@ -1111,6 +1168,7 @@ namespace lox
                     RULE(NUMBER, &Compiler::number, nullptr, NONE),
                     RULE(IDENTIFIER, &Compiler::variable, nullptr, NONE),
                     RULE(STRING, &Compiler::string, nullptr, NONE),
+                    RULE(THIS, &Compiler::this_, nullptr, NONE),
                     RULE(FALSE, &Compiler::literal, nullptr, NONE),
                     RULE(TRUE, &Compiler::literal, nullptr, NONE),
                     RULE(NIL, &Compiler::literal, nullptr, NONE),

@@ -19,6 +19,7 @@ namespace lox
     {
         friend class GC;
         friend class ObjInstance;
+        friend class ObjClass;
 
     public:
 

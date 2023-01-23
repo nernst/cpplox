@@ -3,6 +3,7 @@
 #include "lox/map.hpp"
 #include "lox/types/objclass.hpp"
 #include "lox/types/objinstance.hpp"
+#include "lox/types/objboundmethod.hpp"
 #include "fmt/ostream.h"
 #include <iostream>
 
@@ -126,6 +127,13 @@ namespace lox
                 break;
             }
 
+            case ObjectType::OBJBOUNDMETHOD:
+            {
+                auto const& method = static_cast<ObjBoundMethod const&>(object);
+                print_object(os, *method.method()->function());
+                break;
+            }
+
             default:
                 unreachable();
                 break;
@@ -174,6 +182,7 @@ namespace lox
         Object::gc_blacken(gc);
 
         gc.mark_object(name_);
+        methods_.mark_objects(gc);
     }
 
     void ObjInstance::gc_blacken(GC& gc)
@@ -182,5 +191,13 @@ namespace lox
 
         gc.mark_object(class_);
         fields_.mark_objects(gc);
+    }
+
+    void ObjBoundMethod::gc_blacken(GC& gc)
+    {
+        Object::gc_blacken(gc);
+
+        gc.mark_value(receiver_);
+        gc.mark_object(method_);
     }
 }

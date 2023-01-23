@@ -70,6 +70,14 @@ namespace lox
         , length{0}
         {}
 
+        explicit Token(std::string_view token)
+        : line{static_cast<size_t>(-1)}
+        , type{INVALID}
+        , start(token.data())
+        , length(token.size())
+        , token{token}
+        {}
+
         Token(Token const&) = default;
         Token(Token&&) = default;
 
