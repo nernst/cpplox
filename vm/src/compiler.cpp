@@ -900,6 +900,12 @@ namespace lox
                     expression();
                     emit(OpCode::OP_SET_PROPERTY, name);
                 }
+                else if (match(Token::LEFT_PAREN))
+                {
+                    auto arg_count = argument_list();
+                    emit(OpCode::OP_INVOKE, name);
+                    emit(arg_count);
+                }
                 else
                 {
                     emit(OpCode::OP_GET_PROPERTY, name);

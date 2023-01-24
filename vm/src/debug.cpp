@@ -40,6 +40,16 @@ namespace lox
             fmt::print(stream, "{:<16} {:4} -> {}\n", name, offset, offset + 3 + sign * jump);
             return offset + 3;
         }
+
+        size_t invoke(std::ostream& stream, Chunk const& chunk, std::string_view name, int offset)
+        {
+            auto constant = chunk.code()[offset + 1];
+            auto arg_count = chunk.code()[offset + 2];
+            fmt::print(stream, "{:<16} ({} args) {:4} '", name, arg_count, constant);
+            print_value(stream, chunk.constants()[constant]);
+            fmt::print(stream, "'\n");
+            return offset + 3;
+        }
     }
 
     void disassemble(std::ostream& stream, Chunk const& chunk, std::string_view name)
@@ -157,6 +167,9 @@ namespace lox
 
             case OpCode::OP_CALL:
                 return byte_instruction(stream, chunk, "OP_CALL", offset);
+            
+            case OpCode::OP_INVOKE:
+                return invoke(stream, chunk, "OP_INVOKE", offset);
 
             case OpCode::OP_CLOSURE:
             {

@@ -1,2 +1,11 @@
-class Brioche{}
-print Brioche();
+class Class{
+    init(message)
+    {
+        this.message = message;
+    }
+
+    say()
+    { print this.message; }
+}
+var instance = Class("pass");
+instance.say();

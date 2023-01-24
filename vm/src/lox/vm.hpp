@@ -292,5 +292,8 @@ namespace lox
 
 
         void do_mark_objects(GC& gc) override;
+
+        bool invoke(String* name, byte arg_count);
+        bool invoke_from_class(ObjClass* klass, String* name, byte arg_count);
     };
 }

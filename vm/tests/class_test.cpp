@@ -94,3 +94,23 @@ instance.say();
     assert_equal(res, lox::VM::Result::OK);
     assert_equal(out, expected);
 }
+
+BOOST_AUTO_TEST_CASE(class_non_method_invoke_test)
+{
+    const auto test = R"test(
+class Class{
+    init()
+    {
+        fun f(){ print "pass"; }
+        this.test = f;
+    }
+}
+var instance = Class();
+instance.test();
+    )test"s;
+    const auto expected = "pass"s;
+
+    auto [res, out, err] = run_test(test);
+    assert_equal(res, lox::VM::Result::OK);
+    assert_equal(out, expected);
+}

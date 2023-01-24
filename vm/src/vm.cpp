@@ -441,6 +441,18 @@ namespace lox
                     break;
                 }
 
+                case OpCode::OP_INVOKE:
+                {
+                    auto method = read_string();
+                    auto arg_count = read_byte();
+                    if (!invoke(method, arg_count))
+                    {
+                        return Result::RUNTIME_ERROR;
+                    }
+                    frame = current_frame();
+                    break;
+                }
+
                 case OpCode::OP_CLOSURE:
                 {
                     auto value = read_constant();
@@ -520,5 +532,36 @@ namespace lox
         pop();
         push(Value{bound});
         return true;
+    }
+
+    bool VM::invoke(String* name, byte arg_count)
+    {
+        Value receiver = peek(arg_count);
+        ObjInstance* instance{nullptr};
+        if (!receiver.try_get(instance))
+        {
+            runtime_error("Only instances have methods.");
+            return false;
+        }
+        
+        Value value;
+        if (instance->fields().get(name, value))
+        {
+            stack_top_[-arg_count - 1] = value;
+            return call_value(value, arg_count);
+        }
+
+        return invoke_from_class(instance->obj_class(), name, arg_count);
+    }
+
+    bool VM::invoke_from_class(ObjClass* klass, String* name, byte arg_count)
+    {
+        Value method;
+        if (!klass->methods().get(name, method))
+        {
+            runtime_error("Undefined property '{}'.", name->view());
+            return false;
+        }
+        return call(method.get<Closure*>(), arg_count);
     }
 }
