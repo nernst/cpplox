@@ -1,13 +1,12 @@
 #pragma once
 
 #include "common.hpp"
+#include "value.hpp"
 #include <atomic>
 #include <iosfwd>
 
 namespace lox
 {
-    class Object;
-    class Value;
     class GC;
 
     enum class Tracking{

@@ -24,7 +24,7 @@ namespace lox {
         ObjClass& operator=(ObjClass&&) = delete;
 
         ObjectType type() const override { return ObjectType::OBJCLASS; }  
-        const char* type_name() const override { return "ObjClass"; }
+        std::string_view type_name() const override { return "ObjClass"; }
 
         Map& methods() { return methods_; }
         Map const& methods() const { return methods_; }

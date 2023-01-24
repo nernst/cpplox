@@ -30,7 +30,7 @@ namespace lox {
         Closure const* method() const { return method_; }
 
         ObjectType type() const override { return ObjectType::OBJBOUNDMETHOD; }
-        const char* type_name() const override { return "ObjBoundMethod"; }
+        std::string_view type_name() const override { return "ObjBoundMethod"; }
 
     private:
         Value receiver_;

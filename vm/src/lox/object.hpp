@@ -64,7 +64,7 @@ namespace lox
         { return !equals(other); }
         
         virtual ObjectType type() const = 0;
-        virtual const char* type_name() const = 0;
+        virtual std::string_view type_name() const = 0;
 
         virtual bool equals(Object const& other) const {
             return this == &other;
@@ -114,7 +114,7 @@ namespace lox
         String& operator=(String&&) = default;
 
         ObjectType type() const override { return ObjectType::STRING; }
-        const char* type_name() const override { return "String"; }
+        std::string_view type_name() const override { return "String"; }
 
         size_t length() const { return data_.length(); }
         const char* c_str() const { return data_.c_str(); }
@@ -165,7 +165,7 @@ namespace lox
         Function& operator=(Function&&) = delete;
 
         ObjectType type() const override { return ObjectType::FUNCTION; }
-        const char* type_name() const override { return "Function"; }
+        std::string_view type_name() const override { return "Function"; }
 
         unsigned arity() const { return arity_; }
 
@@ -217,7 +217,7 @@ namespace lox
         NativeFunction& operator=(NativeFunction&&) = delete;
 
         ObjectType type() const override { return ObjectType::NATIVE_FUNCTION; }
-        const char* type_name() const override { return "NativeFunction"; }
+        std::string_view type_name() const override { return "NativeFunction"; }
 
         Value invoke(int arg_count, Value* args) const
         { return native_(arg_count, args); }
@@ -251,7 +251,7 @@ namespace lox
         ObjUpvalue** upvalues() const { return upvalues_.get(); }
 
         ObjectType type() const override { return ObjectType::CLOSURE; }
-        const char* type_name() const override { return "Closure"; }
+        std::string_view type_name() const override { return "Closure"; }
 
     private:
         friend class VM;
@@ -292,7 +292,7 @@ namespace lox
         }
 
         ObjectType type() const override { return ObjectType::OBJUPVALUE; }
-        const char* type_name() const override { return "ObjUpvalue"; }
+        std::string_view type_name() const override { return "ObjUpvalue"; }
 
     private:
         Value* location_; 

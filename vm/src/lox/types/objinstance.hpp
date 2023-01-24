@@ -30,7 +30,7 @@ namespace lox {
         Map const& fields() const { return fields_; }
 
         ObjectType type() const override { return ObjectType::OBJINSTANCE; }
-        const char* type_name() const override { return "ObjInstance"; }
+        std::string_view type_name() const override { return "ObjInstance"; }
 
     private:
         ObjClass* class_;
