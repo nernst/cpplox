@@ -211,20 +211,30 @@ namespace lox
 
         Entry const* find_entry(std::string_view key) const
         {
-            return const_cast<Map*>(this)->find_entry(key);
+            return const_cast<Map*>(this)->find_entry(lox::hash(key), key);
+        }
+
+        Entry const* find_entry(String* key) const
+        {
+            return const_cast<Map*>(this)->find_entry(key->hash(), key->view());
         }
 
         Entry* find_entry(std::string_view key)
+        { return find_entry(lox::hash(key), key); }
+
+        Entry* find_entry(String* key)
+        { return find_entry(key->hash(), key->view()); }
+
+        Entry* find_entry(size_t hash, std::string_view key)
         {
-            const size_t hash{lox::hash(key)};
-            size_t index{hash % capacity_};
+            size_t index{hash & (capacity_ - 1)};
             Entry* tombstone{nullptr};
 
             while (true)
             {
                 Entry* entry = entries_.get() + index;
                 if (entry->key == nullptr)
-                {
+                {   // empty entry
                     if (entry->value.is_nil())
                     {
                         return tombstone != nullptr ? tombstone : entry;
@@ -235,11 +245,11 @@ namespace lox
                             tombstone = entry;
                     }
                 }
-                else if (entry->key->view() == key)
+                else if (entry->key->view().data() == key.data() || entry->key->view() == key)
                 {
                     return entry;
                 }
-                index = (index + 1) % capacity_;
+                index = (index + 1) & (capacity_ - 1);
             }
         }
 
