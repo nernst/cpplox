@@ -174,6 +174,9 @@ namespace lox
             case OpCode::OP_INVOKE:
                 return invoke(stream, chunk, "OP_INVOKE", offset);
 
+            case OpCode::OP_SUPER_INVOKE:
+                return invoke(stream, chunk, "OP_SUPER_INVOKE", offset);
+
             case OpCode::OP_CLOSURE:
             {
                 ++offset;

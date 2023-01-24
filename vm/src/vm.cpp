@@ -466,6 +466,19 @@ namespace lox
                     break;
                 }
 
+                case OpCode::OP_SUPER_INVOKE:
+                {
+                    auto method = read_string();
+                    auto arg_count = read_byte();
+                    auto superclass = pop().get<ObjClass*>();
+                    if (!invoke_from_class(superclass, method, arg_count))
+                    {
+                        return Result::RUNTIME_ERROR;
+                    }
+                    frame = current_frame();
+                    break;
+                }
+
                 case OpCode::OP_CLOSURE:
                 {
                     auto value = read_constant();

@@ -858,8 +858,19 @@ namespace lox
                 consume(Token::IDENTIFIER, "Expect superclass method name.");
                 auto name = identifier_constant(previous_);
                 named_variable(Token{"this"}, false);
-                named_variable(Token{"super"}, false);
-                emit(OpCode::OP_GET_SUPER, name);
+
+                if (match(Token::LEFT_PAREN))
+                {
+                    auto arg_count = argument_list();
+                    named_variable(Token{"super"}, false);
+                    emit(OpCode::OP_SUPER_INVOKE, name);
+                    emit(arg_count);
+                }
+                else
+                {
+                    named_variable(Token{"super"}, false);
+                    emit(OpCode::OP_GET_SUPER, name);
+                }
             }
 
             void this_(bool can_assign)
