@@ -109,6 +109,21 @@ namespace lox
             return is_new;
         }
 
+        void add_all(Map const& other)
+        {
+            auto p = other.entries_.get();
+            if (!p)
+                return;
+
+            for (auto pend = p + other.capacity_; p != pend; ++p)
+            {
+                if (!p->key)
+                    continue;
+
+                add(p->key, p->value);
+            }
+        }
+
         bool get(String* key, Value& out) const {
             assert(key);
             return get(key->view(), out);

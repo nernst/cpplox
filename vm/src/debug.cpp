@@ -126,6 +126,9 @@ namespace lox
             case OpCode::OP_SET_PROPERTY:
                 return constant(stream, chunk, "OP_SET_PROPERTY", offset);
 
+            case OpCode::OP_GET_SUPER:
+                return constant(stream, chunk, "OP_GET_SUPER", offset);
+
             case OpCode::OP_EQUAL:
                 return simple(stream, chunk, "OP_EQUAL", offset);
 
@@ -206,6 +209,9 @@ namespace lox
 
             case OpCode::OP_CLASS:
                 return constant(stream, chunk, "OP_CLASS", offset);
+
+            case OpCode::OP_INHERIT:
+                return simple(stream, chunk, "OP_INHERIT", offset);
 
             case OpCode::OP_METHOD:
                 return constant(stream, chunk, "OP_METHOD", offset);

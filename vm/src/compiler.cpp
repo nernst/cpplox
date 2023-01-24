@@ -54,6 +54,7 @@ namespace lox
             struct Class
             {
                 Class* enclosing = nullptr;
+                bool has_super_class = false;
             };
 
         public:
@@ -501,6 +502,24 @@ namespace lox
                 Class klass{current_class_};
                 current_class_ = &klass;
 
+                if (match(Token::LESS))
+                {
+                    consume(Token::IDENTIFIER, "Expect superclass name.");
+                    variable(false);
+                    if (identifiers_equal(class_name, previous_))
+                    {
+                        error("A cklass cannot inherit from itself.");
+                    }
+
+                    begin_scope();
+                    add_local(Token{"super"});
+                    define_variable(0);
+
+                    named_variable(class_name, false);
+                    emit(OpCode::OP_INHERIT);
+                    klass.has_super_class = true;
+                }
+
                 named_variable(class_name, false); // push class name
 
                 consume(Token::LEFT_BRACE, "Expect '{' before class body.");
@@ -510,6 +529,10 @@ namespace lox
                 }
                 consume(Token::RIGHT_BRACE, "Expect '}' after class body.");
                 emit(OpCode::OP_POP); // pop class name
+                if (klass.has_super_class)
+                {
+                    end_scope();
+                }
 
                 current_class_ = klass.enclosing;
             }
@@ -816,6 +839,27 @@ namespace lox
             void variable(bool can_assign)
             {
                 named_variable(previous_, can_assign);
+            }
+
+            void super_(bool can_assign)
+            {
+                ignore(can_assign);
+
+                if (current_class_ == nullptr)
+                {
+                    error("Cannot use 'super' outside of a class.");
+                }
+                else if (!current_class_->has_super_class)
+                {
+                    error("Cannot user 'super' in a class with no superclass.");
+                }
+
+                consume(Token::DOT, "Expect '.' after 'super'.");
+                consume(Token::IDENTIFIER, "Expect superclass method name.");
+                auto name = identifier_constant(previous_);
+                named_variable(Token{"this"}, false);
+                named_variable(Token{"super"}, false);
+                emit(OpCode::OP_GET_SUPER, name);
             }
 
             void this_(bool can_assign)
@@ -1174,6 +1218,7 @@ namespace lox
                     RULE(NUMBER, &Compiler::number, nullptr, NONE),
                     RULE(IDENTIFIER, &Compiler::variable, nullptr, NONE),
                     RULE(STRING, &Compiler::string, nullptr, NONE),
+                    RULE(SUPER, &Compiler::super_, nullptr, NONE),
                     RULE(THIS, &Compiler::this_, nullptr, NONE),
                     RULE(FALSE, &Compiler::literal, nullptr, NONE),
                     RULE(TRUE, &Compiler::literal, nullptr, NONE),

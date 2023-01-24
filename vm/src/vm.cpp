@@ -382,6 +382,19 @@ namespace lox
                     break;
                 }
 
+                case OpCode::OP_GET_SUPER:
+                {
+                    auto name = read_string();
+                    auto superclass = pop().get<ObjClass*>();
+
+                    if (!bind_method(superclass, name))
+                    {
+                        return Result::RUNTIME_ERROR;
+                    }
+
+                    break;
+                }
+
                 case OpCode::OP_EQUAL:
                     push(Value(pop() == pop()));
                     break;
@@ -492,6 +505,21 @@ namespace lox
                 case OpCode::OP_CLASS:
                 {
                     push(Value{new ObjClass{read_string()}});
+                    break;
+                }
+
+                case OpCode::OP_INHERIT:
+                {
+                    Value superclass = peek(1);
+                    ObjClass* super;
+                    if (!superclass.try_get(super))
+                    {
+                        runtime_error("Superclass must be a class, not {}.", superclass.type_name());
+                        return Result::RUNTIME_ERROR;
+                    }
+                    auto subclass = peek(0).get<ObjClass*>();
+                    subclass->methods().add_all(super->methods());
+                    pop(); // subclass
                     break;
                 }
 

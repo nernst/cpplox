@@ -114,3 +114,37 @@ instance.test();
     assert_equal(res, lox::VM::Result::OK);
     assert_equal(out, expected);
 }
+
+BOOST_AUTO_TEST_CASE(class_super_invoke_test)
+{
+    const auto test = R"test(
+class Base{
+    test()
+    {
+        print "pass";
+    }
+
+    say()
+    {
+        this.test();
+    }
+}
+class Derived < Base{
+    test() {
+        print "fail";
+    }
+
+    say() {
+        super.test();
+    }
+}
+
+Base().say();
+Derived().say();
+    )test"s;
+    const auto expected = "pass\npass"s;
+
+    auto [res, out, err] = run_test(test);
+    assert_equal(res, lox::VM::Result::OK);
+    assert_equal(out, expected);
+}
