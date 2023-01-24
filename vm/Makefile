@@ -7,7 +7,7 @@ USE_UBSAN := 1
 USE_ASAN := 1
 
 SHELL := bash
-CC := g++-11
+CC := g++-12
 LD := $(CC)
 
 FMT_VERSION := 8.1.1

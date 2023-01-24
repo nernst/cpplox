@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "value.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <string_view>
 #include <vector>
