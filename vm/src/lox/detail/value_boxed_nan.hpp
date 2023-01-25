@@ -83,18 +83,7 @@ namespace lox {
             return *this;
         }
 
-        explicit operator bool() const {
-            return apply([](auto&& value) -> bool {
-                using T = std::decay_t<decltype(value)>;
-                if constexpr(std::is_same_v<T, nullptr_t>)
-                    return false;
-                else if constexpr(std::is_same_v<T, bool>)
-                    return value;
-                else
-                    return true;
-            });
-        }
-
+        constexpr explicit operator bool() const { return is_true(); }
         constexpr bool is_nil() const { return value_ == nil_v; }
         constexpr bool is_bool() const { return (value_ | 1) == true_v; }
         constexpr bool is_true() const
