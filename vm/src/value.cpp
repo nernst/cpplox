@@ -7,9 +7,6 @@
 namespace lox
 {
 
-    #ifdef LOX_NAN_BOXING
-    #else
-
     namespace detail {
         std::string_view obj_type_name(Object const* obj)
         { return obj->type_name(); }
@@ -17,8 +14,6 @@ namespace lox
         ObjectType obj_type(Object const* obj)
         { return obj->type(); }
     }
-
-    #endif
 
     void print_value(std::ostream& stream, Value const& value)
     {

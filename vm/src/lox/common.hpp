@@ -10,6 +10,8 @@
 
 #include <fmt/format.h>
 
+#define LOX_NAN_BOXING
+
 #if 0
 #define DEBUG_COMPILE
 #define DEBUG_PRINT_CODE

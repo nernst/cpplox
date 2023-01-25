@@ -9,7 +9,7 @@
 
 namespace lox { namespace detail {
 
-    class ValuBaseVariant
+    class ValueBaseVariant
     {
         using value_t = std::variant<
             std::nullptr_t,
@@ -19,50 +19,48 @@ namespace lox { namespace detail {
         >;
 
     public:
-        ValuBaseVariant()
+        ValueBaseVariant()
         : value_{nullptr}
         { }
 
-        explicit ValuBaseVariant(bool value)
+        explicit ValueBaseVariant(bool value)
         : value_{value}
         { }
 
-        explicit ValuBaseVariant(double value)
+        explicit ValueBaseVariant(double value)
         : value_{value}
         { }
 
         template <typename Integer,
                 std::enable_if_t<std::is_integral<Integer>::value, bool> = true
         >
-        explicit ValuBaseVariant(Integer value)
+        explicit ValueBaseVariant(Integer value)
         : value_{static_cast<double>(value)}
         {}
 
-        explicit ValuBaseVariant(Object* object)
+        explicit ValueBaseVariant(Object* object)
         : value_{object}
         { }
 
-        ValuBaseVariant(ValuBaseVariant const& copy)
+        ValueBaseVariant(ValueBaseVariant const& copy)
         : value_{copy.value_}
         {}
 
-        ValuBaseVariant(ValuBaseVariant&& from)
-        : value_{std::move(from.value_)}
+        ValueBaseVariant(ValueBaseVariant&& from)
+        : value_{std::exchange(from.value_, value_t{})}
         {}
 
-        ~ValuBaseVariant() = default;
+        ~ValueBaseVariant() = default;
 
-        ValuBaseVariant& operator=(ValuBaseVariant const& copy)
+        ValueBaseVariant& operator=(ValueBaseVariant const& copy)
         {
-            if (this != &copy)
-                value_ = copy.value_;
+            value_ = copy.value_;
             return *this;
         }
 
-        ValuBaseVariant& operator=(ValuBaseVariant&& from)
+        ValueBaseVariant& operator=(ValueBaseVariant&& from)
         {
-            if (this != &from)
-                value_ = std::move(from.value_);
+            value_ = std::exchange(from.value_, value_t{});
             return *this;
         }
 
@@ -78,8 +76,11 @@ namespace lox { namespace detail {
             });
         }
 
+        bool is_nil() const { return is<nullptr_t>(); }
+        bool is_bool() const { return is<bool>(); }
         bool is_true() const { return bool{*this}; }
         bool is_false() const { return !is_true(); }
+        bool is_number() const { return is<double>(); }
         bool is_object() const { return is<Object*>(); }
         bool is_object_type(ObjectType type) const
         {
@@ -91,23 +92,18 @@ namespace lox { namespace detail {
 
         bool is_string() const { return is_object_type(ObjectType::STRING); }
         bool is_function() const { return is_object_type(ObjectType::FUNCTION); }
-        bool is_number() const { return is<double>(); }
-        bool is_nil() const { return is<nullptr_t>(); }
 
-        template<typename T>
-        T* as_obj() const
+        Object* as_obj() const
         {
-            Object* obj{nullptr};
-            if (try_get(obj)) {
-                return dynamic_cast<T*>(obj);
-            }
+            if (std::holds_alternative<Object*>(value_))
+                return std::get<Object*>(value_);
             return nullptr;
         }
 
-        bool operator==(ValuBaseVariant const& other) const
+        bool operator==(ValueBaseVariant const& other) const
         { return value_ == other.value_; }
 
-        bool operator!=(ValuBaseVariant const& other) const
+        bool operator!=(ValueBaseVariant const& other) const
         { return value_ != other.value_; }
 
         template<typename T>

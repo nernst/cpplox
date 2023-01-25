@@ -1,9 +1,5 @@
 #pragma once
 #include "common.hpp"
-#include <cassert>
-#include <type_traits>
-#include <variant>
-#include <vector>
 #include <iosfwd>
 
 namespace lox {
@@ -21,7 +17,7 @@ namespace lox {
 }
 
 #ifdef LOX_NAN_BOXING
-#error "not implemented"
+#include "./detail/value_boxed_nan.hpp"
 #else
 #include "./detail/value_base_variant.hpp"
 #endif
@@ -29,8 +25,9 @@ namespace lox {
 namespace lox
 {
     #ifdef LOX_NAN_BOXING
+    using Value = ::lox::detail::ValueBaseBoxedNan;
     #else
-    using Value = ::lox::detail::ValuBaseVariant;
+    using Value = ::lox::detail::ValueBaseVariant;
     #endif
 
     void print_value(Value const& value);
